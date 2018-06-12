@@ -34,6 +34,7 @@ fi
 OS="$(uname)"
 if [ "x${OS}" = "xDarwin" ] ; then
   OSEXT="osx"
+  KOSEXT="darwin"
 else
   OSEXT="linux"
 fi
@@ -65,7 +66,7 @@ fi
 
 # kubectl binary download and setup.
 NAME="kubectl"
-URL="https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/${OSEXT}/amd64/kubectl"
+URL="https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/${KOSEXT}/amd64/kubectl"
 SUPPORTED_VERSION="$(kubectl version --client --short | grep v${KUBECTL_VERSION})"
 if [ "${SUPPORTED_VERSION}" ] ; then
     echo "### ${NAME} ${KUBECTL_VERSION} currently installed, skipping ..."
@@ -82,7 +83,7 @@ fi
 
 # helm client binary download and setup.
 NAME="helm"
-HELM_TARBALL="helm-v${HELM_VERSION}-${OSEXT}-amd64.tar.gz"
+HELM_TARBALL="helm-v${HELM_VERSION}-${KOSEXT}-amd64.tar.gz"
 URL="https://storage.googleapis.com/kubernetes-helm/${HELM_TARBALL}"
 SUPPORTED_VERSION="$(helm version --client --short | grep v${HELM_VERSION})"
 if [ "${SUPPORTED_VERSION}" ] ; then
@@ -94,9 +95,9 @@ else
         tar -xzvf ${HELM_TARBALL}
     fi
     # Move helm binary to ${BIN_DIR}
-    chmod +x ${OSEXT}-amd64/${NAME}
-    mv ${OSEXT}-amd64/${NAME} ${BIN_DIR}
-    rm -rf ${HELM_TARBALL} ${OSEXT}-amd64
+    chmod +x ${KOSEXT}-amd64/${NAME}
+    mv ${KOSEXT}-amd64/${NAME} ${BIN_DIR}
+    rm -rf ${HELM_TARBALL} ${KOSEXT}-amd64
     echo "### ${NAME} v${HELM_VERSION} binary installed at ${BIN_DIR} ..."
 fi
 
