@@ -13,8 +13,9 @@ export HELM_VERSION="${HELM_VERSION:-2.8.2}"
 export ISTIO_NAMESPACE="${ISTIO_NAMESPACE:-istio-system}"
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 export BIN_DIR="${BIN_DIR:-/usr/local/bin}"
-export ISTIO_INJECT_NS="default"
-export INSTALL_BOOKINFO="true"
+export ISTIO_INJECT_NS="${ISTIO_INJECT_NS:-default}"
+export INSTALL_BOOKINFO="${INSTALL_BOOKINFO:-true}"
+export SLEEP_TIME="${SLEEP_TIME:-30}"
 
 # Check for Root user.
 if [ "$(id -u)" != "0" ]; then
@@ -89,8 +90,8 @@ kubectl get deploy -n ${ISTIO_NAMESPACE} | grep istio-pilot
 if [ $? -eq 0 ] ; then
     echo "### Deleting Kubernetes deployment for Istio in namespace \"${ISTIO_NAMESPACE}\" ..."
     kubectl delete -f $HOME/istio-${ISTIO_VERSION}.yaml
-    # Wait 30 sec for resource to be removed from k8s.
-    sleep 30
+    # Wait SLEEP_TIME sec for resource to be removed from k8s.
+    sleep ${SLEEP_TIME}
     echo "### Deleted Kubernetes deployment for Istio in namespace \"${ISTIO_NAMESPACE}\" ..."
 else
     echo "### The Istio deployment for namespace \"${ISTIO_NAMESPACE}\" does not exist ..."
