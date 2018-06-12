@@ -14,6 +14,7 @@ export ISTIO_NAMESPACE="${ISTIO_NAMESPACE:-istio-system}"
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 export BIN_DIR="${BIN_DIR:-/usr/local/bin}"
 export ISTIO_INJECT_NS="default"
+export INSTALL_BOOKINFO="true"
 
 # Check for Root user.
 if [ "$(id -u)" != "0" ]; then
@@ -117,7 +118,6 @@ if [ $? -eq 0 ] ; then
 else
     echo "### Creating Kubernetes namespace ${ISTIO_NAMESPACE} for Istio control-plane ..."
     kubectl create ns ${ISTIO_NAMESPACE}
-    echo "### Created Kubernetes namespace ${ISTIO_NAMESPACE} for Istio control-plane ..."
 fi
 
 # Label default Kubernetes namespace for Istio automatic sidecar injection.
@@ -127,7 +127,6 @@ if [ $? -eq 0 ] ; then
 else
     echo "### Labeling ${ISTIO_INJECT_NS} Kubernetes namespace for Istio automatic sidecar injection ..."
     kubectl label namespace ${ISTIO_INJECT_NS} istio-injection=enabled
-    echo "### Labeled default Kubernetes namespace for Istio automatic sidecar injection ..."
 fi
 
 # Deploy Istio control-plane.
@@ -142,5 +141,34 @@ else
     echo "### Completed Istio control-plane deployment!"
     echo "### Use \"kubectl get po -n ${ISTIO_NAMESPACE}\" to check on the deployment status."
     echo "### It may take several minutes for all pods to achieve a Running or Completed status."
+fi
+
+# Install bookinfo sample app
+if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
+    kubectl get po | grep productpage
+    if [ $? -eq 0 ] ; then
+        echo "### Bookinfo app exists, skipping ..."
+    else
+        echo "### Creating bookinfo deployment"
+        kubectl create -f istio-${ISTIO_VERSION}/samples/bookinfo/kube/bookinfo.yaml
+    fi
+    kubectl get ing | grep gateway
+    if [ $? -eq 0 ] ; then
+        echo "### Bookinfo ingress exists, skipping ..."
+    else
+        echo "### Creating bookinfo ingress"
+        kubectl create -f istio-${ISTIO_VERSION}/samples/bookinfo/kube/bookinfo-gateway.yaml
+    fi
+    # Test the bookinfo productpage ingress
+    echo "### Waiting 60 seconds for bookinfo deployment to complete before testing ..."
+    sleep 60
+    NODE_IP=$(kubectl get po -l istio=ingress -n istio-system -o jsonpath='{.items[0].status.hostIP}')
+    NODE_PORT=$(kubectl get svc istio-ingress -n istio-system -o jsonpath='{.spec.ports[0].nodePort}')
+    RESP=$(curl -w %{http_code} -s -o /dev/null http://${NODE_IP}:${NODE_PORT}/productpage)
+    if [ "${RESP}" = "200" ] ; then
+        echo "### Bookinfo gateway test succeeeded."
+    else
+        echo "### Bookinfo gateway test failed."
+    fi
 fi
 
