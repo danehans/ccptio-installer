@@ -168,7 +168,7 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
     if [ "${RESP}" = "200" ] ; then
         echo "### Bookinfo gateway test succeeeded."
     else
-        echo "### Bookinfo gateway test failed."
+        echo "### Bookinfo gateway test failed or timed-out. Try testing manually using Readme."
     fi
 fi
 
