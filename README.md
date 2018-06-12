@@ -15,6 +15,7 @@ The following prerequisites must be met before using ccptio-installer:
 
 1. CCP installed and a tenant cluster created according to the [CCP Installation Guide](https://www.cisco.com/c/en/us/td/docs/net_mgmt/cisco_container_platform/1-0/Installation_Guide/CCP-Installation-Guide-01/CCP-Installation-Guide-01_chapter_00.html)
 2. CCP tenant cluster credentials. Use the [CCP Installation Guide](https://www.cisco.com/c/en/us/td/docs/net_mgmt/cisco_container_platform/1-0/Installation_Guide/CCP-Installation-Guide-01/CCP-Installation-Guide-01_chapter_00.html) to generate and download the cluster credentials.
+3. Root or sudo access on the system that ccptio-installer will be run from.
 
 ## Istio Deployment
 
