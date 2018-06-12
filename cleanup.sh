@@ -1,9 +1,9 @@
 #! /bin/sh
 #
-# Early version of an Istio Installer for CCP
+# Early version of an Istio Uninstaller for CCP
 #
-# This file will be fetched as: curl -L https://git.io/installccptio | sh -
-# so it should be pure bourne shell, not bash (and not reference other scripts)
+# This file is fetched as: curl -L $URL | sh -
+# so it should be pure bourne shell, not bash (and not reference other scripts).
 #
 
 # TODO: Remove 0.8.0 after initial testing.
