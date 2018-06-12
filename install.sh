@@ -15,11 +15,12 @@ export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 export BIN_DIR="${BIN_DIR:-/usr/local/bin}"
 export ISTIO_INJECT_NS="${ISTIO_INJECT_NS:-default}"
 export INSTALL_BOOKINFO="${INSTALL_BOOKINFO:-true}"
-export SLEEP_TIME="${SLEEP_TIME:-60}"
+export SLEEP_TIME="${SLEEP_TIME:-45}"
 
 # Check for Root user.
 if [ "$(id -u)" != "0" ]; then
-    echo "### This script must be run as root or with sudo"
+    echo "### This script must be run as root or with sudo. For example:"
+    echo "curl -L https://raw.githubusercontent.com/danehans/ccptio-installer/master/install.sh | sudo sh -"
     exit 1
 fi
 

@@ -19,7 +19,8 @@ export SLEEP_TIME="${SLEEP_TIME:-30}"
 
 # Check for Root user.
 if [ "$(id -u)" != "0" ]; then
-    echo "### This script must be run as root or with sudo"
+    echo "### This script must be run as root or with sudo. For example:"
+    echo "curl -L https://raw.githubusercontent.com/danehans/ccptio-installer/master/cleanup.sh | sudo sh -"
     exit 1
 fi
 
