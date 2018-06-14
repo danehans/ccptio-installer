@@ -21,7 +21,7 @@ export REMOVE_BINS="${REMOVE_BINS:-false}"
 # Check for Root user.
 if [ "$(id -u)" != "0" ]; then
     echo "### This script must be run as root or with sudo. For example:"
-    echo "curl -L https://raw.githubusercontent.com/danehans/ccptio-installer/master/cleanup.sh | sudo sh -"
+    echo "curl -L https://git.io/uninstall-ccptio | sudo sh -"
     exit 1
 fi
 
