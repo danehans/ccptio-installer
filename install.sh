@@ -50,13 +50,13 @@ fi
 NAME="istioctl"
 ISTIOCTL="istio-${ISTIO_VERSION}/bin/istioctl"
 URL="https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istio-${ISTIO_VERSION}-${OSEXT}.tar.gz"
-SUPPORTED_VERSION="$(${NAME} version | grep ${ISTIO_VERSION})"
+SUPPORTED_VERSION="$(${NAME} version 2> /dev/null | grep ${ISTIO_VERSION})"
 if [ "${SUPPORTED_VERSION}" ] ; then
     echo "### ${NAME} ${ISTIO_VERSION} currently installed, skipping ..."
 else
-    if ! [ "$(stat ${ISTIOCTL})" ] ; then
+    if ! [ "$(stat ${ISTIOCTL} 2> /dev/null)" ] ; then
         echo "### Downloading ${NAME} from ${URL} ..."
-        curl -sL "${URL}" | tar xz
+        curl -sL "${URL}" | tar xz 2> /dev/null
         echo "### ${NAME} ${ISTIO_VERSION} downloaded ..."
     fi
     # Move istioctl binary to ${BIN_DIR}
@@ -68,11 +68,11 @@ fi
 # kubectl binary download and setup.
 NAME="kubectl"
 URL="https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/${KOSEXT}/amd64/kubectl"
-SUPPORTED_VERSION="$(kubectl version --client --short | grep v${KUBECTL_VERSION})"
+SUPPORTED_VERSION="$(kubectl version --client --short 2> /dev/null | grep v${KUBECTL_VERSION})"
 if [ "${SUPPORTED_VERSION}" ] ; then
     echo "### ${NAME} ${KUBECTL_VERSION} currently installed, skipping ..."
 else
-    if ! [ "$(stat ${NAME})" ] ; then
+    if ! [ "$(stat ${NAME} 2> /dev/null)" ] ; then
         echo "### Downloading ${NAME} v${KUBECTL_VERSION} from ${URL} ..."
         curl -sLO "${URL}"
     fi
@@ -86,11 +86,11 @@ fi
 NAME="helm"
 HELM_TARBALL="helm-v${HELM_VERSION}-${KOSEXT}-amd64.tar.gz"
 URL="https://storage.googleapis.com/kubernetes-helm/${HELM_TARBALL}"
-SUPPORTED_VERSION="$(helm version --client --short | grep v${HELM_VERSION})"
+SUPPORTED_VERSION="$(helm version --client --short 2> /dev/null | grep v${HELM_VERSION})"
 if [ "${SUPPORTED_VERSION}" ] ; then
     echo "### ${NAME} v${HELM_VERSION} currently installed, skipping ..."
 else
-    if ! [ "$(stat ${HELM_TARBALL})" ] ; then
+    if ! [ "$(stat ${HELM_TARBALL} 2> /dev/null)" ] ; then
         echo "### Downloading ${NAME} from ${URL} ..."
         curl -sLO "${URL}"
         tar -xzvf ${HELM_TARBALL}
@@ -104,7 +104,7 @@ fi
 
 # Render Kubernetes manifest for Istio deployment.
 MANIFEST="$HOME/istio-${ISTIO_VERSION}.yaml"
-if [ "$(stat ${MANIFEST})" ]; then
+if [ "$(stat ${MANIFEST} 2> /dev/null)" ]; then
     echo "### Kubernetes manifest ${MANIFEST} currently rendered, skipping ..."
     echo "### Run \"rm -rf ${MANIFEST}\" to re-render the Kubernetes manifest ..."
 else
@@ -115,17 +115,17 @@ else
     echo "### Rendered ${MANIFEST} Kubernetes manifest for Istio deployment ..."
 fi
 
-# Create Kubernetes namespace for Istio control-plane.
-kubectl get ns ${ISTIO_NAMESPACE}
+# Create Kubernetes namespace used for Istio.
+kubectl get ns ${ISTIO_NAMESPACE} 2> /dev/null
 if [ $? -eq 0 ] ; then
     echo "### ${ISTIO_NAMESPACE} namespace currently exists, skipping ..."
 else
-    echo "### Creating Kubernetes namespace ${ISTIO_NAMESPACE} for Istio control-plane ..."
+    echo "### Creating Kubernetes namespace ${ISTIO_NAMESPACE} used for Istio ..."
     kubectl create ns ${ISTIO_NAMESPACE}
 fi
 
 # Label default Kubernetes namespace for Istio automatic sidecar injection.
-kubectl get namespace -L istio-injection | grep ${ISTIO_INJECT_NS} | grep enabled
+kubectl get namespace -L istio-injection 2> /dev/null | grep ${ISTIO_INJECT_NS} | grep enabled
 if [ $? -eq 0 ] ; then
     echo "### Istio auto sidecar injection for \"${ISTIO_INJECT_NS}\" namespace currently exists, skipping ..."
 else
@@ -133,8 +133,8 @@ else
     kubectl label namespace ${ISTIO_INJECT_NS} istio-injection=enabled
 fi
 
-# Deploy Istio control-plane.
-kubectl get deploy -n ${ISTIO_NAMESPACE} | grep istio-pilot
+# Deploy Istio.
+kubectl get deploy -n ${ISTIO_NAMESPACE} 2> /dev/null | grep istio-pilot
 if [ $? -eq 0 ] ; then
     echo "### A Kubernetes deployment for Istio in namespace \"${ISTIO_NAMESPACE}\" currently exists, skipping deployment."
     echo "### To redeploy Istio in namespace \"${ISTIO_NAMESPACE}\", run \"kubectl delete -f ${MANIFEST}\""
@@ -145,9 +145,8 @@ else
     echo "### Waiting ${SLEEP_TIME}-seconds for Istio pods to achieve a Running or Completed status ..."
     sleep ${SLEEP_TIME}
     kubectl get po -n ${ISTIO_NAMESPACE}
-    echo "### Completed Istio control-plane deployment!"
-    echo "### Use \"kubectl get po -n ${ISTIO_NAMESPACE}\" to verify the deployment status."
-    echo "### It may take several minutes for all pods to achieve a Running or Completed status."
+    echo "### Completed Istio deployment!"
+    echo "### Use \"kubectl get po -n ${ISTIO_NAMESPACE}\" to verify all pods are in a Running or Completed status."
 fi
 
 # Install bookinfo sample app
