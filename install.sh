@@ -6,7 +6,6 @@
 # so it should be pure bourne shell, not bash (and not reference other scripts).
 #
 
-# TODO: Remove 0.8.0 after initial testing.
 export ISTIO_VERSION="${ISTIO_VERSION:-0.8.0}"
 export KUBECTL_VERSION="${KUBECTL_VERSION:-1.10.1}"
 export HELM_VERSION="${HELM_VERSION:-2.8.2}"
@@ -40,15 +39,22 @@ else
   KOSEXT="linux"
 fi
 
-# Download the latest version of Istio if ISTIO_VERSION is not specified.
-if [ "x${ISTIO_VERSION}" = "x" ] ; then
-  ISTIO_VERSION=$(curl -sL https://api.github.com/repos/istio/istio/releases/latest | \
-                  grep tag_name | sed "s/ *\"tag_name\": *\"\(.*\)\",*/\1/")
+# Download Istio install templates, and sample apps.
+NAME="istio-${ISTIO_VERSION}"
+URL="https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istio-${ISTIO_VERSION}-${OSEXT}.tar.gz"
+CHECK="$(stat ${NAME} 2> /dev/null)"
+if [ "${CHECK}" ] ; then
+    echo "### Istio install templates, and sample apps currently installed at ${NAME}, skipping ..."
+else
+    # Download Istio install templates, and sample apps.
+    echo "### Downloading $NAME from $URL ..."
+    curl -sL "$URL" | tar xz
+    echo "### Downloaded Istio install templates, and sample apps into $NAME ..."
 fi
 
 # Download istioctl binary, Istio install templates, and sample apps.
 NAME="istioctl"
-ISTIOCTL="istio-${ISTIO_VERSION}/bin/istioctl"
+ISTIOCTL="istio-${ISTIO_VERSION}/bin/${NAME}"
 URL="https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istio-${ISTIO_VERSION}-${OSEXT}.tar.gz"
 SUPPORTED_VERSION="$(${NAME} version 2> /dev/null | grep ${ISTIO_VERSION})"
 if [ "${SUPPORTED_VERSION}" ] ; then
@@ -59,7 +65,7 @@ else
         curl -sL "${URL}" | tar xz 2> /dev/null
         echo "### ${NAME} ${ISTIO_VERSION} downloaded ..."
     fi
-    # Move istioctl binary to ${BIN_DIR}
+    # Move istioctl binary to BIN_DIR
     chmod +x ${ISTIOCTL}
     mv ${ISTIOCTL} ${BIN_DIR}
     echo "### ${NAME} v${ISTIO_VERSION} binary installed at ${BIN_DIR} ..."
