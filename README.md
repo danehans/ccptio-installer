@@ -1,31 +1,35 @@
 # ccptio-installer
 Istio Installation Script for Cisco Container Platform (CCP)
 
-## Table of Contents
+## Introduction
 
-   1. [Prerequisites](#prerequisites)
-   2. [Istio Deployment](#istio-deployment)
-   3. [Sample Application Deployment](#sample-application-deployment)
-   4. [Troubleshooting](#troubleshooting)
-   5. [Istio Cleanup](#istio-cleanup)
+[Istio](https://istio.io/) is an open platform to connect, manage, and secure microservices. This guide provides
+instructions for installing and uninstalling Istio 0.8.0 on Cisco Container Platform (CCP) 1.0.1. Reference
+the [official documentation](https://istio.io/docs/) to learn more about Istio.
 
 ## Prerequisites
 
-The following prerequisites must be met before using ccptio-installer:
+The following prerequisites must be met before installing Istio on CCP:
 
-1. CCP installed and a tenant cluster created according to the [CCP Installation Guide](https://www.cisco.com/c/en/us/td/docs/net_mgmt/cisco_container_platform/1-0/Installation_Guide/CCP-Installation-Guide-01/CCP-Installation-Guide-01_chapter_00.html)
-2. CCP tenant cluster credentials. Use the [CCP Installation Guide](https://www.cisco.com/c/en/us/td/docs/net_mgmt/cisco_container_platform/1-0/Installation_Guide/CCP-Installation-Guide-01/CCP-Installation-Guide-01_chapter_00.html) to generate and download the cluster credentials.
-3. Root or sudo access on the system that ccptio-installer will be run from.
+1. CCP installed with the Calico network plugin.
+2. A tenant cluster created according to the
+[CCP Installation Guide](https://www.cisco.com/c/en/us/td/docs/net_mgmt/cisco_container_platform/1-0/Installation_Guide/CCP-Installation-Guide-01/CCP-Installation-Guide-01_chapter_00.html).
+Tenant cluster nodes should be provisioned with at least 4 vCPUs and 24 GB of RAM.
+2. CCP tenant cluster credentials (i.e. kubeconfig). Use the
+[CCP User Guide](https://www.cisco.com/c/en/us/td/docs/net_mgmt/cisco_container_platform/1-0/User_Guide/CCP-User-Guide-01/CCP-User-Guide-01_chapter_0110.html#id_66394)
+to download your tenant cluster credentials. The credential file should be stored at `$HOME/.kube/config` or set a
+custom location:
+   ```
+   export KUBECONFIG=/path/to/my/config
+   ```
+3. Root user or `sudo` access on the system that will be used for the installation.
 
-## Istio Deployment
+## Istio Installation
 
-Deploying Istio to CCP requires one command:
+Installing Istio to CCP requires one command:
 ```
 curl -L https://git.io/install-ccptio  | sh -
 ```
-
-Several environment variables that can be used to customize the deployment. Review the
-[installation script](https://github.com/danehans/ccptio-installer/blob/master/install.sh) for details.
 
 ## Customizing the Installation
 
@@ -45,30 +49,29 @@ Now when you run the installer, Istio will be installed in the `ccptio` namespac
 
 ## Sample Application Deployment
 
-By default, ccptio-installer deploys and tests the bookinfo sample application. You can set `INSTALL_BOOKINFO` to `false to
-not deploy and test the bookinfo sample applicstion:
+By default, the [bookinfo](https://istio.io/docs/guides/bookinfo/) sample application is included in the installation.
+Set `INSTALL_BOOKINFO=false` to avoid this default behavior:
 ```
 export INSTALL_BOOKINFO="false"
 ```
 
 The bookinfo application exposes the `productpage` service externally using a `NodePort`. This means the service can
-be accessed using `$NODE_IP:$NODE_PORT/$INGRESS_PATH`, where `$NODE_IP` is an IP address of any worker node in the tenant
-cluster, $NODE_PORT is the `nodePort` value of the `istio-ingress` service and $PATH is the backend path of the bookinfo
-`gateway` Ingress resource.
+be accessed using `$NODE_IP:$NODE_PORT/$INGRESS_PATH`, where `$NODE_IP` is an IP address of any worker node in the
+tenant cluster, $NODE_PORT is the `nodePort` value of the `istio-ingress` service and $PATH is the backend path of the
+bookinfo `gateway` Ingress resource.
 
-If you would like to manually test the bookinfo app, set the environment variables used to construct the bookinfo
-productpage URL:
+If you would like to manually test bookinfo, set the environment variables used to construct the productpage URL:
 ```
 export NODE_IP=$(kubectl get po -l istio=ingress -n istio-system -o jsonpath='{.items[0].status.hostIP}')
 export NODE_PORT=$(kubectl get svc istio-ingress -n istio-system -o jsonpath='{.spec.ports[0].nodePort}')
 ```
 
-Use curl to test connectivity to the `productpage` Ingress:
+Use `curl` to test access to the productpage Ingress:
 ```
 curl -I http://$NODE_IP:$NODE_PORT/productpage
 ```
 
-Verify that you receive a `200` response code:
+You should receive a `HTTP/1.1 200 OK` response code:
 ```
 HTTP/1.1 200 OK
 content-type: text/html; charset=utf-8
@@ -78,20 +81,26 @@ date: Tue, 05 Jun 2018 18:44:33 GMT
 x-envoy-upstream-service-time: 6024
 ```
 
-You have successfully deployed the bookinfo application.
+You have successfully tested the bookinfo application on your Istio service mesh.
 
-## Istio Cleanup
+## Uninstall Istio
 
-Removing everything done by the ccptio-installer script requires one command:
+Removing everything done by the installer requires one command:
 ```
 curl -L https://git.io/uninstall-ccptio  | sh -
 ```
-Several environment variables that can be used to customize the cleanup. Review the
-[cleanup script](https://github.com/danehans/ccptio-installer/blob/master/cleanup.sh) for details.
+By default, the uninstaller does not remove the istioctl, helm, and kubectl binaries. Set `REMOVE_BINS=true` to avoid
+this default behavior:
+```
+export REMOVE_BINS="true"
+```
+
+The uninstaller supports similar configuration options as the installer. Review the
+[uninstaller](https://github.com/danehans/ccptio-installer/blob/master/cleanup.sh) for details.
 
 ## Troubleshooting
 
-stio Client installation by using the `istioctl version` command. You should receive output similar to the
+Verify the Istio Client installation by using the `istioctl version` command. You should receive output similar to the
 following:
 ```
 Version: 0.8.0
