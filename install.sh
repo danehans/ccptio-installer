@@ -37,6 +37,7 @@ if [ "x${OS}" = "xDarwin" ] ; then
   KOSEXT="darwin"
 else
   OSEXT="linux"
+  KOSEXT="linux"
 fi
 
 # Download the latest version of Istio if ISTIO_VERSION is not specified.
