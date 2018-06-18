@@ -14,7 +14,7 @@ export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
 export BIN_DIR="${BIN_DIR:-/usr/local/bin}"
 export ISTIO_INJECT_NS="${ISTIO_INJECT_NS:-default}"
 export INSTALL_BOOKINFO="${INSTALL_BOOKINFO:-true}"
-export SLEEP_TIME="${SLEEP_TIME:-30}"
+export SLEEP_TIME="${SLEEP_TIME:-60}"
 
 # Check for Root user.
 if [ "$(id -u)" != "0" ]; then
