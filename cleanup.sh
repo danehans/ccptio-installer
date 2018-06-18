@@ -77,8 +77,12 @@ fi
 # Remove Istio deployment.
 kubectl get deploy -n ${ISTIO_NAMESPACE} 2> /dev/null | grep istio-pilot
 if [ $? -eq 0 ] ; then
-    echo "### Deleting Kubernetes deployment for Istio in namespace \"${ISTIO_NAMESPACE}\" ..."
+    echo "### Deleting Istio deployment in namespace \"${ISTIO_NAMESPACE}\" ..."
     kubectl delete -f $HOME/istio-${ISTIO_VERSION}.yaml
+    if [ $? -ne 0 ] ; then
+        echo "### Failed to delete Istio deployment in namespace \"${ISTIO_NAMESPACE}\" ..."
+        exit 1
+    fi
     # Wait SLEEP_TIME sec for resource to be removed from k8s.
     sleep ${SLEEP_TIME}
     echo "### Deleted Kubernetes deployment for Istio in namespace \"${ISTIO_NAMESPACE}\" ..."
@@ -91,6 +95,10 @@ kubectl get namespace -L istio-injection 2> /dev/null | grep ${ISTIO_INJECT_NS} 
 if [ $? -eq 0 ] ; then
     echo "### Removing \"istio-injection=enabled\" from \"${ISTIO_INJECT_NS}\" namespace ..."
     kubectl label namespace ${ISTIO_INJECT_NS} istio-injection-
+    if [ $? -ne 0 ] ; then
+        echo "### Failed to remove \"istio-injection=enabled\" from \"${ISTIO_INJECT_NS}\" namespace ..."
+        exit 1
+    fi
 else
     echo "### Label \"istio-injection=enabled\" does not exist for \"${ISTIO_INJECT_NS}\", skipping ..."
 fi
@@ -100,11 +108,15 @@ kubectl get ns ${ISTIO_NAMESPACE} 2> /dev/null
 if [ $? -eq 0 ] ; then
     echo "### Removing \"${ISTIO_NAMESPACE}\" namespace ..."
     kubectl delete ns ${ISTIO_NAMESPACE}
+    if [ $? -ne 0 ] ; then
+        echo "### Failed to remove \"${ISTIO_NAMESPACE}\" namespace ..."
+        exit 1
+    fi
 else
     echo "### Namespace \"${ISTIO_NAMESPACE}\" does not exist, skipping ..."
 fi
 
-# Render Kubernetes manifest for Istio deployment.
+# Remove Kubernetes manifest for Istio deployment.
 MANIFEST="$HOME/istio-${ISTIO_VERSION}.yaml"
 if [ "$(stat ${MANIFEST} 2> /dev/null)" ]; then
     echo "### Removing manifest ${MANIFEST} ..."

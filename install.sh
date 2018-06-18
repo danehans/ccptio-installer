@@ -118,7 +118,12 @@ else
     helm template istio-${ISTIO_VERSION}/install/kubernetes/helm/istio \
     --set ingressgateway.service.type=NodePort \
     --name istio --namespace ${ISTIO_NAMESPACE} > ${MANIFEST}
-    echo "### Rendered ${MANIFEST} Kubernetes manifest for Istio deployment ..."
+    if [ $? -eq 0 ] ; then
+        echo "### Rendered ${MANIFEST} Kubernetes manifest for Istio deployment ..."
+    else
+        echo "### Failed to render ${MANIFEST} Kubernetes manifest for Istio deployment ..."
+        exit 1
+    fi
 fi
 
 # Create Kubernetes namespace used for Istio.
@@ -128,6 +133,10 @@ if [ $? -eq 0 ] ; then
 else
     echo "### Creating Kubernetes namespace ${ISTIO_NAMESPACE} used for Istio ..."
     kubectl create ns ${ISTIO_NAMESPACE}
+    if [ $? -ne 0 ] ; then
+        echo "### Failed to create Kubernetes namespace ${ISTIO_NAMESPACE} used for Istio ..."
+        exit 1
+    fi
 fi
 
 # Label default Kubernetes namespace for Istio automatic sidecar injection.
@@ -137,6 +146,10 @@ if [ $? -eq 0 ] ; then
 else
     echo "### Labeling ${ISTIO_INJECT_NS} Kubernetes namespace for Istio automatic sidecar injection ..."
     kubectl label namespace ${ISTIO_INJECT_NS} istio-injection=enabled
+    if [ $? -ne 0 ] ; then
+        echo "### Failed to label ${ISTIO_INJECT_NS} Kubernetes namespace for Istio automatic sidecar injection ..."
+        exit 1
+    fi
 fi
 
 # Deploy Istio.
@@ -148,11 +161,15 @@ if [ $? -eq 0 ] ; then
 else
     echo "### Deploying Istio using manifest ${MANIFEST} ..."
     kubectl create -f ${MANIFEST}
-    echo "### Waiting ${SLEEP_TIME}-seconds for Istio pods to achieve a Running or Completed status ..."
-    sleep ${SLEEP_TIME}
-    kubectl get po -n ${ISTIO_NAMESPACE}
-    echo "### Completed Istio deployment!"
-    echo "### Use \"kubectl get po -n ${ISTIO_NAMESPACE}\" to verify all pods are in a Running or Completed status."
+    if [ $? -ne 0 ] ; then
+        echo "### Failed to deploy Istio using manifest ${MANIFEST} ..."
+    else
+        echo "### Waiting ${SLEEP_TIME}-seconds for Istio pods to achieve a Running or Completed status ..."
+        sleep ${SLEEP_TIME}
+        kubectl get po -n ${ISTIO_NAMESPACE}
+        echo "### Completed Istio deployment!"
+        echo "### Use \"kubectl get po -n ${ISTIO_NAMESPACE}\" to verify all pods are in a Running or Completed status."
+    fi
 fi
 
 # Install bookinfo sample app
@@ -161,8 +178,12 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
     if [ $? -eq 0 ] ; then
         echo "### Bookinfo app exists, skipping ..."
     else
-        echo "### Creating bookinfo deployment"
+        echo "### Creating bookinfo deployment ..."
         kubectl create -f istio-${ISTIO_VERSION}/samples/bookinfo/kube/bookinfo.yaml
+        if [ $? -ne 0 ] ; then
+            echo "### Failed to create bookinfo deployment ..."
+            exit 1
+        fi
     fi
     kubectl get ing | grep gateway
     if [ $? -eq 0 ] ; then
@@ -170,6 +191,10 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
     else
         echo "### Creating bookinfo ingress"
         kubectl create -f istio-${ISTIO_VERSION}/samples/bookinfo/kube/bookinfo-gateway.yaml
+        if [ $? -ne 0 ] ; then
+            echo "### Failed to create bookinfo ingress ..."
+            exit 1
+        fi
     fi
     # Test the bookinfo productpage ingress
     echo "### Waiting ${SLEEP_TIME}-seconds for bookinfo deployment to complete before testing ..."
