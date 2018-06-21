@@ -6,6 +6,7 @@
 # so it should be pure bourne shell, not bash (and not reference other scripts).
 #
 
+export CLUSTER="${CLUSTER:-}"
 export ISTIO_VERSION="${ISTIO_VERSION:-0.8.0}"
 export KUBECTL_VERSION="${KUBECTL_VERSION:-1.10.1}"
 export HELM_VERSION="${HELM_VERSION:-2.8.2}"
@@ -29,32 +30,52 @@ if ! [ "$(stat ${KUBECONFIG})" ] ; then
     exit 1
 fi
 
+# Set CLUSTER environment variable if not done by user.
+if [ "${CLUSTER}" = "" ] ; then
+    echo "### Setting CLUSTER environment variable to active cluster ..."
+    CLUSTER=$(grep "current-context" $KUBECONFIG | awk '{print $2}' 2> /dev/null)
+    if [ $? -ne 0 ] ; then
+      echo "### Failed to set the Kubernetes cluster to \"${CLUSTER}\" ..."
+      exit 1
+    fi
+    echo "### Set the Kubernetes cluster to \"${CLUSTER}\" ..."
+fi
+
 # Set operating system to download correct binaries.
 OS="$(uname)"
 if [ "x${OS}" = "xDarwin" ] ; then
-  OSEXT="osx"
-  KOSEXT="darwin"
+    OSEXT="osx"
+    KOSEXT="darwin"
 else
-  OSEXT="linux"
-  KOSEXT="linux"
+    OSEXT="linux"
+    KOSEXT="linux"
 fi
 
 # Download Istio install templates, and sample apps.
 NAME="istio-${ISTIO_VERSION}"
 URL="https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istio-${ISTIO_VERSION}-${OSEXT}.tar.gz"
-CHECK="$(stat ${NAME} 2> /dev/null)"
+CHECK="$(stat ${HOME}/${NAME} 2> /dev/null)"
 if [ "${CHECK}" ] ; then
-    echo "### Istio install templates, and sample apps currently installed at ${NAME}, skipping ..."
+    echo "### Istio install templates and sample apps currently installed at ${HOME}/${NAME}, skipping ..."
 else
     # Download Istio install templates, and sample apps.
-    echo "### Downloading $NAME from $URL ..."
-    curl -sL "$URL" | tar xz
-    echo "### Downloaded Istio install templates, and sample apps into $NAME ..."
+    echo "### Downloading ${NAME} from ${URL} ..."
+    curl -sL ${URL} | tar xz
+    if [ $? -ne 0 ] ; then
+        echo "### Failed to download and untar Istio install templates and sample apps ... "
+        exit 1
+    fi
+    mv ${NAME} ${HOME}/${CLUSTER}-${NAME}
+    if [ $? -ne 0 ] ; then
+        echo "### Failed to move \"${NAME}\" to \"${HOME}/${CLUSTER}-${NAME}\" ... "
+        exit 1
+    fi
+    echo "### Downloaded Istio install templates and sample apps to ${HOME}/${CLUSTER}-${NAME} ..."
 fi
 
 # Download istioctl binary, Istio install templates, and sample apps.
 NAME="istioctl"
-ISTIOCTL="istio-${ISTIO_VERSION}/bin/${NAME}"
+ISTIOCTL="${CLUSTER}-istio-${ISTIO_VERSION}/bin/${NAME}"
 URL="https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istio-${ISTIO_VERSION}-${OSEXT}.tar.gz"
 SUPPORTED_VERSION="$(${NAME} version 2> /dev/null | grep ${ISTIO_VERSION})"
 if [ "${SUPPORTED_VERSION}" ] ; then
@@ -62,12 +83,12 @@ if [ "${SUPPORTED_VERSION}" ] ; then
 else
     if ! [ "$(stat ${ISTIOCTL} 2> /dev/null)" ] ; then
         echo "### Downloading ${NAME} from ${URL} ..."
-        curl -sL "${URL}" | tar xz 2> /dev/null
-        echo "### ${NAME} ${ISTIO_VERSION} downloaded ..."
+        curl -sLo ${HOME} ${URL} | tar xz 2> /dev/null
+        echo "### ${NAME} ${ISTIO_VERSION} downloaded to ${HOME}..."
     fi
     # Move istioctl binary to BIN_DIR
     chmod +x ${ISTIOCTL}
-    mv ${ISTIOCTL} ${BIN_DIR}
+    mv ${HOME}/${ISTIOCTL} ${BIN_DIR}
     echo "### ${NAME} v${ISTIO_VERSION} binary installed at ${BIN_DIR} ..."
 fi
 
@@ -80,7 +101,11 @@ if [ "${SUPPORTED_VERSION}" ] ; then
 else
     if ! [ "$(stat ${NAME} 2> /dev/null)" ] ; then
         echo "### Downloading ${NAME} v${KUBECTL_VERSION} from ${URL} ..."
-        curl -sLO "${URL}"
+        curl -sLO "${URL}" 2> /dev/null
+        if [ $? -ne 0 ] ; then
+            echo "### Failed to download ${NAME} v${KUBECTL_VERSION} from ${URL} .."
+            exit 1
+        fi
     fi
     # Move kubectl binary to ${BIN_DIR}
     chmod +x ./${NAME}
@@ -98,8 +123,11 @@ if [ "${SUPPORTED_VERSION}" ] ; then
 else
     if ! [ "$(stat ${HELM_TARBALL} 2> /dev/null)" ] ; then
         echo "### Downloading ${NAME} from ${URL} ..."
-        curl -sLO "${URL}"
-        tar -xzvf ${HELM_TARBALL}
+        curl -sLO "${URL}" | tar xzf ${HELM_TARBALL} 2> /dev/null
+        if [ $? -ne 0 ] ; then
+            echo "### Failed to download and untar ${NAME} v${KUBECTL_VERSION} from ${URL} .."
+            exit 1
+        fi
     fi
     # Move helm binary to ${BIN_DIR}
     chmod +x ${KOSEXT}-amd64/${NAME}
@@ -109,7 +137,7 @@ else
 fi
 
 # Render Kubernetes manifest for Istio deployment.
-MANIFEST="$HOME/istio-${ISTIO_VERSION}.yaml"
+MANIFEST="${HOME}/${CLUSTER}-istio-${ISTIO_VERSION}.yaml"
 if [ "$(stat ${MANIFEST} 2> /dev/null)" ]; then
     echo "### Kubernetes manifest ${MANIFEST} currently rendered, skipping ..."
     echo "### Run \"rm -rf ${MANIFEST}\" to re-render the Kubernetes manifest ..."
