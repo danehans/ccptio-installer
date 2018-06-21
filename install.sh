@@ -12,6 +12,7 @@ export KUBECTL_VERSION="${KUBECTL_VERSION:-1.10.1}"
 export HELM_VERSION="${HELM_VERSION:-2.8.2}"
 export ISTIO_NAMESPACE="${ISTIO_NAMESPACE:-istio-system}"
 export KUBECONFIG="${KUBECONFIG:-$HOME/.kube/config}"
+export INSTALL_DIR="${INSTALL_DIR:-$HOME}"
 export BIN_DIR="${BIN_DIR:-/usr/local/bin}"
 export ISTIO_INJECT_NS="${ISTIO_INJECT_NS:-default}"
 export INSTALL_BOOKINFO="${INSTALL_BOOKINFO:-true}"
@@ -30,17 +31,6 @@ if ! [ "$(stat ${KUBECONFIG})" ] ; then
     exit 1
 fi
 
-# Set CLUSTER environment variable if not done by user.
-if [ "${CLUSTER}" = "" ] ; then
-    echo "### Setting CLUSTER environment variable to active cluster ..."
-    CLUSTER=$(grep "current-context" $KUBECONFIG | awk '{print $2}' 2> /dev/null)
-    if [ $? -ne 0 ] ; then
-      echo "### Failed to set the Kubernetes cluster to \"${CLUSTER}\" ..."
-      exit 1
-    fi
-    echo "### Set the Kubernetes cluster to \"${CLUSTER}\" ..."
-fi
-
 # Set operating system to download correct binaries.
 OS="$(uname)"
 if [ "x${OS}" = "xDarwin" ] ; then
@@ -51,66 +41,85 @@ else
     KOSEXT="linux"
 fi
 
-# Download Istio install templates, and sample apps.
-NAME="istio-${ISTIO_VERSION}"
-URL="https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istio-${ISTIO_VERSION}-${OSEXT}.tar.gz"
-CHECK="$(stat ${HOME}/${NAME} 2> /dev/null)"
-if [ "${CHECK}" ] ; then
-    echo "### Istio install templates and sample apps currently installed at ${HOME}/${NAME}, skipping ..."
-else
-    # Download Istio install templates, and sample apps.
-    echo "### Downloading ${NAME} from ${URL} ..."
-    curl -sL ${URL} | tar xz
-    if [ $? -ne 0 ] ; then
-        echo "### Failed to download and untar Istio install templates and sample apps ... "
-        exit 1
-    fi
-    mv ${NAME} ${HOME}/${CLUSTER}-${NAME}
-    if [ $? -ne 0 ] ; then
-        echo "### Failed to move \"${NAME}\" to \"${HOME}/${CLUSTER}-${NAME}\" ... "
-        exit 1
-    fi
-    echo "### Downloaded Istio install templates and sample apps to ${HOME}/${CLUSTER}-${NAME} ..."
-fi
-
-# Download istioctl binary, Istio install templates, and sample apps.
-NAME="istioctl"
-ISTIOCTL="${CLUSTER}-istio-${ISTIO_VERSION}/bin/${NAME}"
-URL="https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istio-${ISTIO_VERSION}-${OSEXT}.tar.gz"
-SUPPORTED_VERSION="$(${NAME} version 2> /dev/null | grep ${ISTIO_VERSION})"
-if [ "${SUPPORTED_VERSION}" ] ; then
-    echo "### ${NAME} ${ISTIO_VERSION} currently installed, skipping ..."
-else
-    if ! [ "$(stat ${ISTIOCTL} 2> /dev/null)" ] ; then
-        echo "### Downloading ${NAME} from ${URL} ..."
-        curl -sLo ${HOME} ${URL} | tar xz 2> /dev/null
-        echo "### ${NAME} ${ISTIO_VERSION} downloaded to ${HOME}..."
-    fi
-    # Move istioctl binary to BIN_DIR
-    chmod +x ${ISTIOCTL}
-    mv ${HOME}/${ISTIOCTL} ${BIN_DIR}
-    echo "### ${NAME} v${ISTIO_VERSION} binary installed at ${BIN_DIR} ..."
-fi
-
 # kubectl binary download and setup.
 NAME="kubectl"
 URL="https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/${KOSEXT}/amd64/kubectl"
-SUPPORTED_VERSION="$(kubectl version --client --short 2> /dev/null | grep v${KUBECTL_VERSION})"
-if [ "${SUPPORTED_VERSION}" ] ; then
+VERSION_CHECK="$(kubectl version --client --short 2> /dev/null | grep v${KUBECTL_VERSION})"
+if [ "${VERSION_CHECK}" ] ; then
     echo "### ${NAME} ${KUBECTL_VERSION} currently installed, skipping ..."
 else
-    if ! [ "$(stat ${NAME} 2> /dev/null)" ] ; then
-        echo "### Downloading ${NAME} v${KUBECTL_VERSION} from ${URL} ..."
-        curl -sLO "${URL}" 2> /dev/null
-        if [ $? -ne 0 ] ; then
-            echo "### Failed to download ${NAME} v${KUBECTL_VERSION} from ${URL} .."
-            exit 1
-        fi
+    echo "### Downloading ${NAME} v${KUBECTL_VERSION} from ${URL} ..."
+    curl -sLO "${URL}" 2> /dev/null
+    if [ $? -ne 0 ] ; then
+        echo "### Failed to download ${NAME} v${KUBECTL_VERSION} from ${URL} .."
+        exit 1
     fi
     # Move kubectl binary to ${BIN_DIR}
     chmod +x ./${NAME}
     mv ./${NAME} ${BIN_DIR}
     echo "### ${NAME} v${KUBECTL_VERSION} binary installed at ${BIN_DIR} ..."
+fi
+
+# Set CLUSTER environment variable if not done by user.
+if [ "x${CLUSTER}" = "x" ] ; then
+    CLUSTER=$(grep "current-context" $KUBECONFIG | awk '{print $2}' 2> /dev/null)
+    if [ $? -ne 0 ] ; then
+      echo "### Failed to set the Kubernetes cluster to \"${CLUSTER}\" ..."
+      exit 1
+    fi
+    echo "### The Kubernetes cluster has been set to \"${CLUSTER}\" ..."
+else
+   kubectl config use-context ${CLUSTER} 2> /dev/null
+    if [ $? -ne 0 ] ; then
+        echo "### Failed to set the Kubernetes cluster to \"${CLUSTER}\" ..."
+        exit 1
+    fi
+    echo "### The Kubernetes cluster has been set to \"${CLUSTER}\" ..."
+fi
+
+# Create the manifest directory
+INSTALL_DIR=${INSTALL_DIR}/${CLUSTER}
+echo "### Using \"${INSTALL_DIR}\" as the installation directory ..."
+mkdir -p ${INSTALL_DIR}
+
+# Download Istio install templates, and sample apps.
+ISTIO_DIR="${INSTALL_DIR}/istio-${ISTIO_VERSION}"
+URL="https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istio-${ISTIO_VERSION}-${OSEXT}.tar.gz"
+DIR_CHECK="$(stat ${ISTIO_DIR} 2> /dev/null)"
+if [ "${DIR_CHECK}" ] ; then
+    echo "### Istio install templates and sample apps currently installed at \"${ISTIO_DIR}\", skipping ..."
+else
+    # Download Istio install templates, and sample apps.
+    echo "### Downloading Istio install templates and sample apps to ${ISTIO_DIR} from ${URL} ..."
+    curl -sL ${URL} | tar xz -C ${INSTALL_DIR} 2> /dev/null
+    if [ $? -ne 0 ] ; then
+        echo "### Failed to download and untar Istio install templates and sample apps ... "
+        exit 1
+    fi
+    echo "### Downloaded Istio install templates and sample apps to ${ISTIO_DIR} ..."
+fi
+
+# Download istioctl binary.
+NAME="istioctl"
+ISTIOCTL="${ISTIO_DIR}/bin/${NAME}"
+URL="https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istio-${ISTIO_VERSION}-${OSEXT}.tar.gz"
+VERSION_CHECK="$(${NAME} version 2> /dev/null | grep ${ISTIO_VERSION})"
+if [ "${VERSION_CHECK}" ] ; then
+    echo "### ${NAME} ${ISTIO_VERSION} currently installed, skipping ..."
+else
+    if ! [ "$(stat ${ISTIOCTL} 2> /dev/null)" ] ; then
+        echo "### Downloading ${NAME} from ${URL} ..."
+        curl -sLo ${INSTALL_DIR} ${URL} | tar xz 2> /dev/null
+        if [ $? -ne 0 ] ; then
+            echo "### Failed to download and untar ${NAME} ${ISTIO_VERSION} ..."
+            exit 1
+        fi
+    fi
+    echo "### ${NAME} ${ISTIO_VERSION} downloaded to ${INSTALL_DIR} ..."
+    # Move istioctl binary to BIN_DIR
+    chmod +x ${ISTIOCTL}
+    mv ${ISTIOCTL} ${BIN_DIR}
+    echo "### ${NAME} v${ISTIO_VERSION} binary installed at ${BIN_DIR} ..."
 fi
 
 # helm client binary download and setup.
@@ -121,14 +130,13 @@ SUPPORTED_VERSION="$(helm version --client --short 2> /dev/null | grep v${HELM_V
 if [ "${SUPPORTED_VERSION}" ] ; then
     echo "### ${NAME} v${HELM_VERSION} currently installed, skipping ..."
 else
-    if ! [ "$(stat ${HELM_TARBALL} 2> /dev/null)" ] ; then
-        echo "### Downloading ${NAME} from ${URL} ..."
-        curl -sLO "${URL}" | tar xzf ${HELM_TARBALL} 2> /dev/null
-        if [ $? -ne 0 ] ; then
-            echo "### Failed to download and untar ${NAME} v${KUBECTL_VERSION} from ${URL} .."
-            exit 1
-        fi
+    echo "### Downloading ${NAME} from ${URL} ..."
+    curl -sLO "${URL}" && tar xzf ${HELM_TARBALL}
+    if [ $? -ne 0 ] ; then
+        echo "### Failed to download and untar ${NAME} v${HELM_VERSION} from ${URL} ..."
+        exit 1
     fi
+    echo "### Downloaded ${NAME} v${HELM_VERSION} from ${URL} ..."
     # Move helm binary to ${BIN_DIR}
     chmod +x ${KOSEXT}-amd64/${NAME}
     mv ${KOSEXT}-amd64/${NAME} ${BIN_DIR}
@@ -137,19 +145,18 @@ else
 fi
 
 # Render Kubernetes manifest for Istio deployment.
-MANIFEST="${HOME}/${CLUSTER}-istio-${ISTIO_VERSION}.yaml"
-if [ "$(stat ${MANIFEST} 2> /dev/null)" ]; then
-    echo "### Kubernetes manifest ${MANIFEST} currently rendered, skipping ..."
-    echo "### Run \"rm -rf ${MANIFEST}\" to re-render the Kubernetes manifest ..."
+ISTIO_MANIFEST="${ISTIO_DIR}/istio.yaml"
+if [ "$(stat ${ISTIO_MANIFEST} 2> /dev/null)" ]; then
+    echo "### Kubernetes manifest ${ISTIO_MANIFEST} currently rendered, skipping ..."
+    echo "### Run \"rm -rf ${ISTIO_MANIFEST}\" to re-render the Kubernetes manifest ..."
 else
-    echo "### Rendering ${MANIFEST} Kubernetes manifest for Istio deployment ..."
-    helm template istio-${ISTIO_VERSION}/install/kubernetes/helm/istio \
+    helm template ${ISTIO_DIR}/install/kubernetes/helm/istio \
     --set ingressgateway.service.type=NodePort \
-    --name istio --namespace ${ISTIO_NAMESPACE} > ${MANIFEST}
+    --name istio --namespace ${ISTIO_NAMESPACE} > ${ISTIO_MANIFEST}
     if [ $? -eq 0 ] ; then
-        echo "### Rendered ${MANIFEST} Kubernetes manifest for Istio deployment ..."
+        echo "### Rendered ${ISTIO_MANIFEST} Kubernetes manifest for Istio deployment ..."
     else
-        echo "### Failed to render ${MANIFEST} Kubernetes manifest for Istio deployment ..."
+        echo "### Failed to render ${ISTIO_MANIFEST} Kubernetes manifest for Istio deployment ..."
         exit 1
     fi
 fi
@@ -159,12 +166,12 @@ kubectl get ns ${ISTIO_NAMESPACE} 2> /dev/null
 if [ $? -eq 0 ] ; then
     echo "### ${ISTIO_NAMESPACE} namespace currently exists, skipping ..."
 else
-    echo "### Creating Kubernetes namespace ${ISTIO_NAMESPACE} used for Istio ..."
     kubectl create ns ${ISTIO_NAMESPACE}
     if [ $? -ne 0 ] ; then
         echo "### Failed to create Kubernetes namespace ${ISTIO_NAMESPACE} used for Istio ..."
         exit 1
     fi
+    echo "### Created Kubernetes namespace ${ISTIO_NAMESPACE} used for Istio ..."
 fi
 
 # Label default Kubernetes namespace for Istio automatic sidecar injection.
@@ -172,25 +179,25 @@ kubectl get namespace -L istio-injection 2> /dev/null | grep ${ISTIO_INJECT_NS} 
 if [ $? -eq 0 ] ; then
     echo "### Istio auto sidecar injection for \"${ISTIO_INJECT_NS}\" namespace currently exists, skipping ..."
 else
-    echo "### Labeling ${ISTIO_INJECT_NS} Kubernetes namespace for Istio automatic sidecar injection ..."
     kubectl label namespace ${ISTIO_INJECT_NS} istio-injection=enabled
     if [ $? -ne 0 ] ; then
         echo "### Failed to label ${ISTIO_INJECT_NS} Kubernetes namespace for Istio automatic sidecar injection ..."
         exit 1
     fi
+    echo "### Labeled ${ISTIO_INJECT_NS} Kubernetes namespace for Istio automatic sidecar injection ..."
 fi
 
 # Deploy Istio.
 kubectl get deploy -n ${ISTIO_NAMESPACE} 2> /dev/null | grep istio-pilot
 if [ $? -eq 0 ] ; then
     echo "### A Kubernetes deployment for Istio in namespace \"${ISTIO_NAMESPACE}\" currently exists, skipping deployment."
-    echo "### To redeploy Istio in namespace \"${ISTIO_NAMESPACE}\", run \"kubectl delete -f ${MANIFEST}\""
+    echo "### To redeploy Istio in namespace \"${ISTIO_NAMESPACE}\", run \"kubectl delete -f ${ISTIO_MANIFEST}\""
     echo "### or use a different value for ISTIO_NAMESPACE."
 else
-    echo "### Deploying Istio using manifest ${MANIFEST} ..."
-    kubectl create -f ${MANIFEST}
+    echo "### Deploying Istio using manifest ${ISTIO_MANIFEST} ..."
+    kubectl create -f ${ISTIO_MANIFEST}
     if [ $? -ne 0 ] ; then
-        echo "### Failed to deploy Istio using manifest ${MANIFEST} ..."
+        echo "### Failed to deploy Istio using manifest ${ISTIO_MANIFEST} ..."
     else
         echo "### Waiting ${SLEEP_TIME}-seconds for Istio pods to achieve a Running or Completed status ..."
         sleep ${SLEEP_TIME}
@@ -207,7 +214,7 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
         echo "### Bookinfo app exists, skipping ..."
     else
         echo "### Creating bookinfo deployment ..."
-        kubectl create -f istio-${ISTIO_VERSION}/samples/bookinfo/kube/bookinfo.yaml
+        kubectl create -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo.yaml
         if [ $? -ne 0 ] ; then
             echo "### Failed to create bookinfo deployment ..."
             exit 1
@@ -218,7 +225,7 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
         echo "### Bookinfo ingress exists, skipping ..."
     else
         echo "### Creating bookinfo ingress"
-        kubectl create -f istio-${ISTIO_VERSION}/samples/bookinfo/kube/bookinfo-gateway.yaml
+        kubectl create -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo-gateway.yaml
         if [ $? -ne 0 ] ; then
             echo "### Failed to create bookinfo ingress ..."
             exit 1
@@ -237,8 +244,8 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
         echo "### Bookinfo gateway test succeeeded with \"HTTP/1.1 ${RESP} OK\" return code."
         echo "### Your Istio service mesh is ready to use."
         echo "### You can remove the bookinfo sample application with the following:"
-        echo "kubectl delete -f istio-${ISTIO_VERSION}/samples/bookinfo/kube/bookinfo-gateway.yaml"
-        echo "kubectl delete -f istio-${ISTIO_VERSION}/samples/bookinfo/kube/bookinfo.yaml"
+        echo "kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo-gateway.yaml"
+        echo "kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo.yaml"
     else
         echo "### Bookinfo gateway test failed or timed-out."
         echo "### Expected a \"200\" http return code, received a \"${RESP}\" return code."
@@ -246,4 +253,3 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
         echo "### curl -I http://${NODE_IP}:${NODE_PORT}/productpage"
     fi
 fi
-
