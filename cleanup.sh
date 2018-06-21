@@ -41,6 +41,28 @@ else
   KOSEXT="linux"
 fi
 
+# Download Istio install templates, and sample apps.
+NAME="istio-${ISTIO_VERSION}"
+URL="https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istio-${ISTIO_VERSION}-${OSEXT}.tar.gz"
+CHECK="$(stat ${HOME}/${NAME} 2> /dev/null)"
+if [ "${CHECK}" ] ; then
+    echo "### Istio install templates and sample apps currently installed at ${HOME}/${NAME}, skipping ..."
+else
+    # Download Istio install templates, and sample apps.
+    echo "### Downloading ${NAME} from ${URL} ..."
+    curl -sL ${URL} | tar xz
+    if [ $? -ne 0 ] ; then
+        echo "### Failed to download and untar Istio install templates and sample apps ... "
+        exit 1
+    fi
+    mv ${NAME} ${HOME}/${CLUSTER}-${NAME}
+    if [ $? -ne 0 ] ; then
+        echo "### Failed to move \"${NAME}\" to \"${HOME}/${CLUSTER}-${NAME}\" ... "
+        exit 1
+    fi
+    echo "### Downloaded Istio install templates and sample apps to ${HOME}/${CLUSTER}-${NAME} ..."
+fi
+
 # kubectl binary download and setup.
 KUBECTL_CHECK="$(kubectl version --client --short 2> /dev/null | grep v${KUBECTL_VERSION})"
 if [ "${KUBECTL_CHECK}" ] ; then
