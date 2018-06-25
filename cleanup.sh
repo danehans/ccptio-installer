@@ -207,23 +207,27 @@ fi
 # Remove binaries.
 if [ "${REMOVE_BINS}" = "true" ] ; then
     # Remove helm client binary.
-    HELM_CHECK="$(helm version --client --short 2> /dev/null | grep v${HELM_VERSION})"
-    if [ "${HELM_CHECK}" ] ; then
+    NAME="helm"
+    VERSION="$(${NAME} version --client --short | grep v${HELM_VERSION} | awk '{print $2}' | cut -d + -f 1)"
+    if [ "${VERSION}" = "v${HELM_VERSION}" ] ; then
         echo "### Removing helm v${HELM_VERSION} from ${BIN_DIR} ..."
         rm -rf ${BIN_DIR}/helm
     else
         echo "### helm v${HELM_VERSION} not installed in ${BIN_DIR}, skipping ..."
     fi
     # Remove kubectl client binary.
-    if [ "${KUBECTL_CHECK}" ] ; then
+    NAME="kubectl"
+    VERSION="$(${NAME} version --client --short | awk '{print $3}' 2> /dev/null)"
+    if [ "${VERSION}" = "v${KUBECTL_VERSION}" ] ; then
         echo "### Removing kubectl v${KUBECTL_VERSION} from ${BIN_DIR} ..."
         rm -rf ${BIN_DIR}/kubectl
     else
         echo "### kubectl v${KUBECTL_VERSION} not installed in ${BIN_DIR}, skipping ..."
     fi
     # Remove istioctl client binary.
-    ISTIOCTL_CHECK="$(istioctl version 2> /dev/null | grep ${ISTIO_VERSION})"
-    if [ "${ISTIOCTL_CHECK}" ] ; then
+    NAME="istioctl"
+    VERSION="$(${NAME} version 2> /dev/null | grep ${ISTIO_VERSION} | awk '{print $2}' 2> /dev/null)"
+    if [ "${VERSION}" = "${ISTIO_VERSION}" ] ; then
         echo "### Removing istioctl v${ISTIO_VERSION} from ${BIN_DIR} ..."
         rm -rf ${BIN_DIR}/istioctl
     else

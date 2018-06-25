@@ -44,8 +44,8 @@ fi
 # kubectl binary download and setup.
 NAME="kubectl"
 URL="https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/${KOSEXT}/amd64/kubectl"
-VERSION_CHECK="$(kubectl version --client --short 2> /dev/null | grep v${KUBECTL_VERSION})"
-if [ "${VERSION_CHECK}" ] ; then
+VERSION="$(${NAME} version --client --short | awk '{print $3}' 2> /dev/null)"
+if [ "${VERSION}" = "v${KUBECTL_VERSION}" ] ; then
     echo "### ${NAME} ${KUBECTL_VERSION} currently installed, skipping ..."
 else
     echo "### Downloading ${NAME} v${KUBECTL_VERSION} from ${URL} ..."
@@ -103,8 +103,8 @@ fi
 NAME="istioctl"
 ISTIOCTL="${ISTIO_DIR}/bin/${NAME}"
 URL="https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istio-${ISTIO_VERSION}-${OSEXT}.tar.gz"
-VERSION_CHECK="$(${NAME} version 2> /dev/null | grep ${ISTIO_VERSION})"
-if [ "${VERSION_CHECK}" ] ; then
+VERSION="$(${NAME} version 2> /dev/null | grep ${ISTIO_VERSION} | awk '{print $2}' 2> /dev/null)"
+if [ "${VERSION}" = "${ISTIO_VERSION}" ] ; then
     echo "### ${NAME} ${ISTIO_VERSION} currently installed, skipping ..."
 else
     if ! [ "$(stat ${ISTIOCTL} 2> /dev/null)" ] ; then
@@ -126,8 +126,8 @@ fi
 NAME="helm"
 HELM_TARBALL="helm-v${HELM_VERSION}-${KOSEXT}-amd64.tar.gz"
 URL="https://storage.googleapis.com/kubernetes-helm/${HELM_TARBALL}"
-SUPPORTED_VERSION="$(helm version --client --short 2> /dev/null | grep v${HELM_VERSION})"
-if [ "${SUPPORTED_VERSION}" ] ; then
+VERSION="$(${NAME} version --client --short | grep v${HELM_VERSION} | awk '{print $2}' | cut -d + -f 1)"
+if [ "${VERSION}" = "v${HELM_VERSION}" ] ; then
     echo "### ${NAME} v${HELM_VERSION} currently installed, skipping ..."
 else
     echo "### Downloading ${NAME} from ${URL} ..."
@@ -143,6 +143,7 @@ else
     rm -rf ${HELM_TARBALL} ${KOSEXT}-amd64
     echo "### ${NAME} v${HELM_VERSION} binary installed at ${BIN_DIR} ..."
 fi
+
 
 # Render Kubernetes manifest for Istio deployment.
 ISTIO_MANIFEST="${ISTIO_DIR}/istio.yaml"
