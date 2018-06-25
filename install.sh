@@ -16,7 +16,6 @@ export INSTALL_DIR="${INSTALL_DIR:-$HOME}"
 export BIN_DIR="${BIN_DIR:-/usr/local/bin}"
 export ISTIO_INJECT_NS="${ISTIO_INJECT_NS:-default}"
 export INSTALL_BOOKINFO="${INSTALL_BOOKINFO:-true}"
-export SLEEP_TIME="${SLEEP_TIME:-60}"
 
 # Check for Root user.
 if [ "$(id -u)" != "0" ]; then
@@ -199,10 +198,16 @@ else
     kubectl create -f ${ISTIO_MANIFEST}
     if [ $? -ne 0 ] ; then
         echo "### Failed to deploy Istio using manifest ${ISTIO_MANIFEST} ..."
+        exit 1
     else
-        echo "### Waiting ${SLEEP_TIME}-seconds for Istio pods to achieve a Running or Completed status ..."
-        sleep ${SLEEP_TIME}
-        kubectl get po -n ${ISTIO_NAMESPACE}
+        echo "### Waiting for Istio pods to achieve a Running or Completed status ..."
+        n=0
+        until [ $n -ge 50 ]
+        do
+            kubectl get po -n ${ISTIO_NAMESPACE} && break
+            n=$[$n+1]
+            sleep 5
+        done
         echo "### Completed Istio deployment!"
         echo "### Use \"kubectl get po -n ${ISTIO_NAMESPACE}\" to verify all pods are in a Running or Completed status."
     fi
@@ -223,7 +228,11 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
     fi
     kubectl get ing | grep gateway
     if [ $? -eq 0 ] ; then
+        NODE_IP=$(kubectl get po -l istio=ingress -n istio-system -o jsonpath='{.items[0].status.hostIP}')
+        NODE_PORT=$(kubectl get svc istio-ingress -n istio-system -o jsonpath='{.spec.ports[0].nodePort}')
         echo "### Bookinfo ingress exists, skipping ..."
+        echo "### Manually test with the following:"
+        echo "### curl -I http://${NODE_IP}:${NODE_PORT}/productpage"
     else
         echo "### Creating bookinfo ingress"
         kubectl create -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo-gateway.yaml
@@ -232,25 +241,39 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
             exit 1
         fi
         # Test the bookinfo productpage ingress
-        echo "### Waiting ${SLEEP_TIME}-seconds for bookinfo deployment to complete before testing ..."
-        sleep ${SLEEP_TIME}
-        NODE_IP=$(kubectl get po -l istio=ingress -n istio-system -o jsonpath='{.items[0].status.hostIP}')
-        NODE_PORT=$(kubectl get svc istio-ingress -n istio-system -o jsonpath='{.spec.ports[0].nodePort}')
+        echo "### Waiting for bookinfo deployment to complete before testing ..."
+        n=0
+        until [ $n -ge 50 ]
+        do
+            NODE_IP=$(kubectl get po -l istio=ingress -n istio-system -o jsonpath='{.items[0].status.hostIP}')
+            NODE_PORT=$(kubectl get svc istio-ingress -n istio-system -o jsonpath='{.spec.ports[0].nodePort}') && break
+            n=$[$n+1]
+            sleep 5
+        done
+        echo "### bookinfo deployment complete ..."
         echo "### Testing bookinfo productpage ingress with the following:"
         echo "### curl -I http://${NODE_IP}:${NODE_PORT}/productpage"
         echo "### Expecting \"HTTP/1.1 200 OK\" return code."
-        RESP=$(curl -w %{http_code} -s -o /dev/null http://${NODE_IP}:${NODE_PORT}/productpage)
-        if [ "${RESP}" = "200" ] ; then
-            echo "### Bookinfo gateway test succeeeded with \"HTTP/1.1 ${RESP} OK\" return code."
-            echo "### Your Istio service mesh is ready to use."
-            echo "### You can remove the bookinfo sample application with the following:"
-            echo "kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo-gateway.yaml"
-            echo "kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo.yaml"
-        else
-            echo "### Bookinfo gateway test failed or timed-out."
-            echo "### Expected a \"200\" http return code, received a \"${RESP}\" return code."
-            echo "### Manually test with the following:"
-            echo "### curl -I http://${NODE_IP}:${NODE_PORT}/productpage"
-        fi
+        n=0
+        while [ $n -le 50 ]
+        do
+            RESP=$(curl -w %{http_code} -s -o /dev/null http://${NODE_IP}:${NODE_PORT}/productpage)
+            if [ "${RESP}" = "200" ] ; then
+                echo "### Bookinfo gateway test succeeeded with \"HTTP/1.1 ${RESP} OK\" return code."
+                echo "### Your Istio service mesh is ready to use."
+                echo "### You can remove the bookinfo sample application with the following:"
+                echo "kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo-gateway.yaml"
+                echo "kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo.yaml"
+                exit 0
+            fi
+            echo "testing ..."
+            sleep 5
+            n=`expr $n + 1`
+        done
+        echo "### Bookinfo gateway test timed-out."
+        echo "### Expected a \"200\" http return code, received a \"${RESP}\" return code."
+        echo "### Manually test with the following:"
+        echo "### curl -I http://${NODE_IP}:${NODE_PORT}/productpage"
+        exit 1
     fi
 fi

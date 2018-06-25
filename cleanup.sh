@@ -16,7 +16,6 @@ export INSTALL_DIR="${INSTALL_DIR:-$HOME}"
 export BIN_DIR="${BIN_DIR:-/usr/local/bin}"
 export ISTIO_INJECT_NS="${ISTIO_INJECT_NS:-default}"
 export INSTALL_BOOKINFO="${INSTALL_BOOKINFO:-true}"
-export SLEEP_TIME="${SLEEP_TIME:-60}"
 export REMOVE_BINS="${REMOVE_BINS:-false}"
 
 # Check for Root user.
@@ -126,7 +125,6 @@ fi
 ISTIO_MANIFEST="${ISTIO_DIR}/istio.yaml"
 if [ "$(stat ${ISTIO_MANIFEST} 2> /dev/null)" ]; then
     echo "### Kubernetes manifest ${ISTIO_MANIFEST} currently rendered, skipping ..."
-    echo "### Run \"rm -rf ${ISTIO_MANIFEST}\" to re-render the Kubernetes manifest ..."
 else
     echo "### Rendering ${ISTIO_MANIFEST} Kubernetes manifest for Istio deployment ..."
     helm template ${ISTIO_DIR}/install/kubernetes/helm/istio \
@@ -163,8 +161,6 @@ if [ $? -eq 0 ] ; then
         echo "### Failed to delete Istio deployment in namespace \"${ISTIO_NAMESPACE}\" ..."
         exit 1
     fi
-    # Wait SLEEP_TIME sec for resource to be removed from k8s.
-    sleep ${SLEEP_TIME}
     echo "### Deleted Kubernetes deployment for Istio in namespace \"${ISTIO_NAMESPACE}\" ..."
 else
     echo "### The Istio deployment for namespace \"${ISTIO_NAMESPACE}\" does not exist ..."

@@ -73,7 +73,7 @@ export INSTALL_BOOKINFO="false"
 
 The bookinfo application exposes the `productpage` service externally using a `NodePort`. This means the service can
 be accessed using `$NODE_IP:$NODE_PORT/$INGRESS_PATH`, where `$NODE_IP` is an IP address of any worker node in the
-tenant cluster, $NODE_PORT is the `nodePort` value of the `istio-ingress` service and $PATH is the backend path of the
+tenant cluster, `$NODE_PORT` is the `nodePort` value of the `istio-ingress` service and $PATH is the backend path of the
 bookinfo `gateway` Ingress resource.
 
 If you would like to manually test bookinfo, set the environment variables used to construct the productpage URL:
