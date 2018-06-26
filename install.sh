@@ -6,7 +6,7 @@
 # so it should be pure bourne shell, not bash (and not reference other scripts).
 #
 
-export CLUSTER="${CLUSTER:-}"
+export CLUSTER_CONTEXT="${CLUSTER_CONTEXT:-}"
 export ISTIO_VERSION="${ISTIO_VERSION:-0.8.0}"
 export KUBECTL_VERSION="${KUBECTL_VERSION:-1.10.1}"
 export HELM_VERSION="${HELM_VERSION:-2.8.2}"
@@ -16,7 +16,6 @@ export INSTALL_DIR="${INSTALL_DIR:-$HOME}"
 export BIN_DIR="${BIN_DIR:-/usr/local/bin}"
 export ISTIO_INJECT_NS="${ISTIO_INJECT_NS:-default}"
 export INSTALL_BOOKINFO="${INSTALL_BOOKINFO:-true}"
-export SLEEP_TIME="${SLEEP_TIME:-60}"
 
 # Check for Root user.
 if [ "$(id -u)" != "0" ]; then
@@ -44,8 +43,8 @@ fi
 # kubectl binary download and setup.
 NAME="kubectl"
 URL="https://storage.googleapis.com/kubernetes-release/release/v${KUBECTL_VERSION}/bin/${KOSEXT}/amd64/kubectl"
-VERSION_CHECK="$(kubectl version --client --short 2> /dev/null | grep v${KUBECTL_VERSION})"
-if [ "${VERSION_CHECK}" ] ; then
+VERSION="$(${NAME} version --client --short | awk '{print $3}' 2> /dev/null)"
+if [ "${VERSION}" = "v${KUBECTL_VERSION}" ] ; then
     echo "### ${NAME} ${KUBECTL_VERSION} currently installed, skipping ..."
 else
     echo "### Downloading ${NAME} v${KUBECTL_VERSION} from ${URL} ..."
@@ -60,25 +59,25 @@ else
     echo "### ${NAME} v${KUBECTL_VERSION} binary installed at ${BIN_DIR} ..."
 fi
 
-# Set CLUSTER environment variable if not done by user.
-if [ "x${CLUSTER}" = "x" ] ; then
-    CLUSTER=$(grep "current-context" $KUBECONFIG | awk '{print $2}' 2> /dev/null)
+# Set CLUSTER_CONTEXT environment variable if not done by user.
+if [ "x${CLUSTER_CONTEXT}" = "x" ] ; then
+    CLUSTER_CONTEXT=$(grep "current-context" $KUBECONFIG | awk '{print $2}' 2> /dev/null)
     if [ $? -ne 0 ] ; then
-      echo "### Failed to set the Kubernetes cluster to \"${CLUSTER}\" ..."
+      echo "### Failed to set the Kubernetes cluster context to \"${CLUSTER_CONTEXT}\" ..."
       exit 1
     fi
-    echo "### The Kubernetes cluster has been set to \"${CLUSTER}\" ..."
+    echo "### The Kubernetes cluster context has been set to \"${CLUSTER_CONTEXT}\" ..."
 else
-   kubectl config use-context ${CLUSTER} 2> /dev/null
+   kubectl config use-context ${CLUSTER_CONTEXT} 2> /dev/null
     if [ $? -ne 0 ] ; then
-        echo "### Failed to set the Kubernetes cluster to \"${CLUSTER}\" ..."
+        echo "### Failed to set the Kubernetes cluster context to \"${CLUSTER_CONTEXT}\" ..."
         exit 1
     fi
-    echo "### The Kubernetes cluster has been set to \"${CLUSTER}\" ..."
+    echo "### The Kubernetes cluster context has been set to \"${CLUSTER_CONTEXT}\" ..."
 fi
 
 # Create the manifest directory
-INSTALL_DIR=${INSTALL_DIR}/${CLUSTER}
+INSTALL_DIR=${INSTALL_DIR}/${CLUSTER_CONTEXT}
 echo "### Using \"${INSTALL_DIR}\" as the installation directory ..."
 mkdir -p ${INSTALL_DIR}
 
@@ -103,8 +102,8 @@ fi
 NAME="istioctl"
 ISTIOCTL="${ISTIO_DIR}/bin/${NAME}"
 URL="https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istio-${ISTIO_VERSION}-${OSEXT}.tar.gz"
-VERSION_CHECK="$(${NAME} version 2> /dev/null | grep ${ISTIO_VERSION})"
-if [ "${VERSION_CHECK}" ] ; then
+VERSION="$(${NAME} version 2> /dev/null | grep ${ISTIO_VERSION} | awk '{print $2}' 2> /dev/null)"
+if [ "${VERSION}" = "${ISTIO_VERSION}" ] ; then
     echo "### ${NAME} ${ISTIO_VERSION} currently installed, skipping ..."
 else
     if ! [ "$(stat ${ISTIOCTL} 2> /dev/null)" ] ; then
@@ -126,8 +125,8 @@ fi
 NAME="helm"
 HELM_TARBALL="helm-v${HELM_VERSION}-${KOSEXT}-amd64.tar.gz"
 URL="https://storage.googleapis.com/kubernetes-helm/${HELM_TARBALL}"
-SUPPORTED_VERSION="$(helm version --client --short 2> /dev/null | grep v${HELM_VERSION})"
-if [ "${SUPPORTED_VERSION}" ] ; then
+VERSION="$(${NAME} version --client --short | grep v${HELM_VERSION} | awk '{print $2}' | cut -d + -f 1)"
+if [ "${VERSION}" = "v${HELM_VERSION}" ] ; then
     echo "### ${NAME} v${HELM_VERSION} currently installed, skipping ..."
 else
     echo "### Downloading ${NAME} from ${URL} ..."
@@ -143,6 +142,7 @@ else
     rm -rf ${HELM_TARBALL} ${KOSEXT}-amd64
     echo "### ${NAME} v${HELM_VERSION} binary installed at ${BIN_DIR} ..."
 fi
+
 
 # Render Kubernetes manifest for Istio deployment.
 ISTIO_MANIFEST="${ISTIO_DIR}/istio.yaml"
@@ -198,10 +198,16 @@ else
     kubectl create -f ${ISTIO_MANIFEST}
     if [ $? -ne 0 ] ; then
         echo "### Failed to deploy Istio using manifest ${ISTIO_MANIFEST} ..."
+        exit 1
     else
-        echo "### Waiting ${SLEEP_TIME}-seconds for Istio pods to achieve a Running or Completed status ..."
-        sleep ${SLEEP_TIME}
-        kubectl get po -n ${ISTIO_NAMESPACE}
+        echo "### Waiting for Istio pods to achieve a Running or Completed status ..."
+        n=0
+        until [ $n -ge 50 ]
+        do
+            kubectl get po -n ${ISTIO_NAMESPACE} && break
+            n=$[$n+1]
+            sleep 5
+        done
         echo "### Completed Istio deployment!"
         echo "### Use \"kubectl get po -n ${ISTIO_NAMESPACE}\" to verify all pods are in a Running or Completed status."
     fi
@@ -222,34 +228,52 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
     fi
     kubectl get ing | grep gateway
     if [ $? -eq 0 ] ; then
-        echo "### Bookinfo ingress exists, skipping ..."
+        NODE_IP=$(kubectl get po -l istio=ingress -n istio-system -o jsonpath='{.items[0].status.hostIP}')
+        NODE_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}')
+        echo "### Bookinfo ingress gateway exists, skipping ..."
+        echo "### Manually test with the following:"
+        echo "### curl -I http://${NODE_IP}:${NODE_PORT}/productpage"
     else
-        echo "### Creating bookinfo ingress"
-        kubectl create -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo-gateway.yaml
+        echo "### Creating bookinfo ingress gateway ..."
+        kubectl create -f ${ISTIO_DIR}/samples/bookinfo/routing/bookinfo-gateway.yaml
         if [ $? -ne 0 ] ; then
-            echo "### Failed to create bookinfo ingress ..."
+            echo "### Failed to create bookinfo ingress gateway ..."
             exit 1
         fi
-    fi
-    # Test the bookinfo productpage ingress
-    echo "### Waiting ${SLEEP_TIME}-seconds for bookinfo deployment to complete before testing ..."
-    sleep ${SLEEP_TIME}
-    NODE_IP=$(kubectl get po -l istio=ingress -n istio-system -o jsonpath='{.items[0].status.hostIP}')
-    NODE_PORT=$(kubectl get svc istio-ingress -n istio-system -o jsonpath='{.spec.ports[0].nodePort}')
-    echo "### Testing bookinfo productpage ingress with the following:"
-    echo "### curl -I http://${NODE_IP}:${NODE_PORT}/productpage"
-    echo "### Expecting \"HTTP/1.1 200 OK\" return code."
-    RESP=$(curl -w %{http_code} -s -o /dev/null http://${NODE_IP}:${NODE_PORT}/productpage)
-    if [ "${RESP}" = "200" ] ; then
-        echo "### Bookinfo gateway test succeeeded with \"HTTP/1.1 ${RESP} OK\" return code."
-        echo "### Your Istio service mesh is ready to use."
-        echo "### You can remove the bookinfo sample application with the following:"
-        echo "kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo-gateway.yaml"
-        echo "kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo.yaml"
-    else
-        echo "### Bookinfo gateway test failed or timed-out."
+        # Test the bookinfo productpage ingress
+        echo "### Waiting for bookinfo deployment to complete before testing ..."
+        n=0
+        until [ $n -ge 50 ]
+        do
+            NODE_IP=$(kubectl get po -l istio=ingress -n istio-system -o jsonpath='{.items[0].status.hostIP}')
+            NODE_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}') && break
+            n=$[$n+1]
+            sleep 5
+        done
+        echo "### bookinfo deployment complete ..."
+        echo "### Testing bookinfo productpage ingress with the following:"
+        echo "### curl -I http://${NODE_IP}:${NODE_PORT}/productpage"
+        echo "### Expecting \"HTTP/1.1 200 OK\" return code."
+        n=0
+        while [ $n -le 50 ]
+        do
+            RESP=$(curl -w %{http_code} -s -o /dev/null http://${NODE_IP}:${NODE_PORT}/productpage)
+            if [ "${RESP}" = "200" ] ; then
+                echo "### Bookinfo gateway test succeeeded with \"HTTP/1.1 ${RESP} OK\" return code."
+                echo "### Your Istio service mesh is ready to use."
+                echo "### You can remove the bookinfo sample application with the following:"
+                echo "kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo-gateway.yaml"
+                echo "kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo.yaml"
+                exit 0
+            fi
+            echo "testing ..."
+            sleep 5
+            n=`expr $n + 1`
+        done
+        echo "### Bookinfo gateway test timed-out."
         echo "### Expected a \"200\" http return code, received a \"${RESP}\" return code."
         echo "### Manually test with the following:"
         echo "### curl -I http://${NODE_IP}:${NODE_PORT}/productpage"
+        exit 1
     fi
 fi

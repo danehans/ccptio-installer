@@ -6,7 +6,7 @@
 # so it should be pure bourne shell, not bash (and not reference other scripts).
 #
 
-export CLUSTER="${CLUSTER:-}"
+export CLUSTER_CONTEXT="${CLUSTER_CONTEXT:-}"
 export ISTIO_VERSION="${ISTIO_VERSION:-0.8.0}"
 export KUBECTL_VERSION="${KUBECTL_VERSION:-1.10.1}"
 export HELM_VERSION="${HELM_VERSION:-2.8.2}"
@@ -16,7 +16,6 @@ export INSTALL_DIR="${INSTALL_DIR:-$HOME}"
 export BIN_DIR="${BIN_DIR:-/usr/local/bin}"
 export ISTIO_INJECT_NS="${ISTIO_INJECT_NS:-default}"
 export INSTALL_BOOKINFO="${INSTALL_BOOKINFO:-true}"
-export SLEEP_TIME="${SLEEP_TIME:-60}"
 export REMOVE_BINS="${REMOVE_BINS:-false}"
 
 # Check for Root user.
@@ -61,25 +60,25 @@ else
     echo "### ${NAME} v${KUBECTL_VERSION} binary installed at ${BIN_DIR} ..."
 fi
 
-# Set CLUSTER environment variable if not done by user.
-if [ "x${CLUSTER}" = "x" ] ; then
-    CLUSTER=$(grep "current-context" $KUBECONFIG | awk '{print $2}' 2> /dev/null)
+# Set CLUSTER_CONTEXT environment variable if not done by user.
+if [ "x${CLUSTER_CONTEXT}" = "x" ] ; then
+    CLUSTER_CONTEXT=$(grep "current-context" $KUBECONFIG | awk '{print $2}' 2> /dev/null)
     if [ $? -ne 0 ] ; then
-      echo "### Failed to set the Kubernetes cluster to \"${CLUSTER}\" ..."
+      echo "### Failed to set the Kubernetes cluster context to \"${CLUSTER_CONTEXT}\" ..."
       exit 1
     fi
-    echo "### The Kubernetes cluster has been set to \"${CLUSTER}\" ..."
+    echo "### The Kubernetes cluster context has been set to \"${CLUSTER_CONTEXT}\" ..."
 else
-   kubectl config use-context ${CLUSTER} 2> /dev/null
+   kubectl config use-context ${CLUSTER_CONTEXT} 2> /dev/null
     if [ $? -ne 0 ] ; then
-        echo "### Failed to set the Kubernetes cluster to \"${CLUSTER}\" ..."
+        echo "### Failed to set the Kubernetes cluster context to \"${CLUSTER_CONTEXT}\" ..."
         exit 1
     fi
-    echo "### The Kubernetes cluster has been set to \"${CLUSTER}\" ..."
+    echo "### The Kubernetes cluster context has been set to \"${CLUSTER_CONTEXT}\" ..."
 fi
 
 # Create the manifest directory
-INSTALL_DIR=${INSTALL_DIR}/${CLUSTER}
+INSTALL_DIR=${INSTALL_DIR}/${CLUSTER_CONTEXT}
 echo "### Using \"${INSTALL_DIR}\" as the installation directory ..."
 mkdir -p ${INSTALL_DIR}
 
@@ -126,7 +125,6 @@ fi
 ISTIO_MANIFEST="${ISTIO_DIR}/istio.yaml"
 if [ "$(stat ${ISTIO_MANIFEST} 2> /dev/null)" ]; then
     echo "### Kubernetes manifest ${ISTIO_MANIFEST} currently rendered, skipping ..."
-    echo "### Run \"rm -rf ${ISTIO_MANIFEST}\" to re-render the Kubernetes manifest ..."
 else
     echo "### Rendering ${ISTIO_MANIFEST} Kubernetes manifest for Istio deployment ..."
     helm template ${ISTIO_DIR}/install/kubernetes/helm/istio \
@@ -144,13 +142,13 @@ fi
 if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
     kubectl get po 2> /dev/null | grep productpage
     if [ $? -eq 0 ] ; then
-        echo "Deleting bookinfo deployment"
+        echo "### Deleting bookinfo deployment ..."
         kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo.yaml
     fi
     kubectl get ing 2> /dev/null | grep gateway
     if [ $? -eq 0 ] ; then
-        echo "Deleting bookinfo ingress"
-        kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo-gateway.yaml
+        echo "### Deleting bookinfo ingress gateway ..."
+        kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/routing/bookinfo-gateway.yaml
     fi
 fi   
 
@@ -163,8 +161,6 @@ if [ $? -eq 0 ] ; then
         echo "### Failed to delete Istio deployment in namespace \"${ISTIO_NAMESPACE}\" ..."
         exit 1
     fi
-    # Wait SLEEP_TIME sec for resource to be removed from k8s.
-    sleep ${SLEEP_TIME}
     echo "### Deleted Kubernetes deployment for Istio in namespace \"${ISTIO_NAMESPACE}\" ..."
 else
     echo "### The Istio deployment for namespace \"${ISTIO_NAMESPACE}\" does not exist ..."
@@ -207,23 +203,27 @@ fi
 # Remove binaries.
 if [ "${REMOVE_BINS}" = "true" ] ; then
     # Remove helm client binary.
-    HELM_CHECK="$(helm version --client --short 2> /dev/null | grep v${HELM_VERSION})"
-    if [ "${HELM_CHECK}" ] ; then
+    NAME="helm"
+    VERSION="$(${NAME} version --client --short | grep v${HELM_VERSION} | awk '{print $2}' | cut -d + -f 1)"
+    if [ "${VERSION}" = "v${HELM_VERSION}" ] ; then
         echo "### Removing helm v${HELM_VERSION} from ${BIN_DIR} ..."
         rm -rf ${BIN_DIR}/helm
     else
         echo "### helm v${HELM_VERSION} not installed in ${BIN_DIR}, skipping ..."
     fi
     # Remove kubectl client binary.
-    if [ "${KUBECTL_CHECK}" ] ; then
+    NAME="kubectl"
+    VERSION="$(${NAME} version --client --short | awk '{print $3}' 2> /dev/null)"
+    if [ "${VERSION}" = "v${KUBECTL_VERSION}" ] ; then
         echo "### Removing kubectl v${KUBECTL_VERSION} from ${BIN_DIR} ..."
         rm -rf ${BIN_DIR}/kubectl
     else
         echo "### kubectl v${KUBECTL_VERSION} not installed in ${BIN_DIR}, skipping ..."
     fi
     # Remove istioctl client binary.
-    ISTIOCTL_CHECK="$(istioctl version 2> /dev/null | grep ${ISTIO_VERSION})"
-    if [ "${ISTIOCTL_CHECK}" ] ; then
+    NAME="istioctl"
+    VERSION="$(${NAME} version 2> /dev/null | grep ${ISTIO_VERSION} | awk '{print $2}' 2> /dev/null)"
+    if [ "${VERSION}" = "${ISTIO_VERSION}" ] ; then
         echo "### Removing istioctl v${ISTIO_VERSION} from ${BIN_DIR} ..."
         rm -rf ${BIN_DIR}/istioctl
     else

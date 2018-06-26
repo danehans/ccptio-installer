@@ -1,5 +1,5 @@
 # ccptio-installer
-Istio Installation Script for Cisco Container Platform (CCP)
+ccptio-installer is a tool for installing or removing Istio on the Cisco Container Platform (CCP).
 
 ## Introduction
 
@@ -47,6 +47,22 @@ export ISTIO_NAMESPACE=ccptio
 
 Now when you run the installer, Istio will be installed in the `ccptio` namespace instead of the default (istio-system).
 
+## Working with Multiple Clusters
+
+ccptio-installer supports [multiple Kubernetes clusters](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/)
+by using the `CLUSTER_CONTEXT` environment variable. `CLUSTER_CONTEXT` is empty by default, causing ccptio-installer to
+use the current cluster context. To run ccptio-installer against another cluster context, set `CLUSTER_CONTEXT` to the
+name of the desired cluster context and run the installer. For example:
+```bash
+kubectl config get-contexts
+CURRENT   NAME              CLUSTER    AUTHINFO   NAMESPACE
+          admin1@cluster1   cluster1   admin1
+*         admin2@cluster2   cluster2   admin2
+
+export CLUSTER_CONTEXT=admin1@cluster1
+curl -L https://git.io/install-ccptio  | sh -
+```
+
 ## Sample Application Deployment
 
 By default, the [bookinfo](https://istio.io/docs/guides/bookinfo/) sample application is included in the installation.
@@ -57,7 +73,7 @@ export INSTALL_BOOKINFO="false"
 
 The bookinfo application exposes the `productpage` service externally using a `NodePort`. This means the service can
 be accessed using `$NODE_IP:$NODE_PORT/$INGRESS_PATH`, where `$NODE_IP` is an IP address of any worker node in the
-tenant cluster, $NODE_PORT is the `nodePort` value of the `istio-ingress` service and $PATH is the backend path of the
+tenant cluster, `$NODE_PORT` is the `nodePort` value of the `istio-ingress` service and $PATH is the backend path of the
 bookinfo `gateway` Ingress resource.
 
 If you would like to manually test bookinfo, set the environment variables used to construct the productpage URL:
