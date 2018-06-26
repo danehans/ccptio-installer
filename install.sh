@@ -220,6 +220,7 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
         echo "### Bookinfo app exists, skipping ..."
     else
         echo "### Creating bookinfo deployment ..."
+        sleep 30
         kubectl create -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo.yaml
         if [ $? -ne 0 ] ; then
             echo "### Failed to create bookinfo deployment ..."
@@ -235,6 +236,7 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
         echo "### curl -I http://${NODE_IP}:${NODE_PORT}/productpage"
     else
         echo "### Creating bookinfo ingress gateway ..."
+        sleep 30
         kubectl create -f ${ISTIO_DIR}/samples/bookinfo/routing/bookinfo-gateway.yaml
         if [ $? -ne 0 ] ; then
             echo "### Failed to create bookinfo ingress gateway ..."
