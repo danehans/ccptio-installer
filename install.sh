@@ -238,7 +238,7 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
     kubectl get ing | grep gateway
     if [ $? -eq 0 ] ; then
         NODE_IP=$(kubectl get po -l istio=ingress -n ${ISTIO_NAMESPACE} -o jsonpath='{.items[0].status.hostIP}')
-        NODE_PORT=$(kubectl -n ${ISTIO_NAMESPACE} get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}')
+        NODE_PORT=$(kubectl -n ${ISTIO_NAMESPACE} get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
         echo "### Bookinfo ingress gateway exists, skipping ..."
         echo "### Manually test with the following:"
         echo "### curl -I http://${NODE_IP}:${NODE_PORT}/productpage"
