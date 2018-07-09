@@ -220,7 +220,8 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
         echo "### Bookinfo app exists, skipping ..."
     else
         echo "### Creating bookinfo deployment ..."
-        sleep 30
+        echo "### Sleeping 2-minutes due to k8s issue #62725 ..."
+        sleep 120
         kubectl create -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo.yaml
         if [ $? -ne 0 ] ; then
             echo "### Failed to create bookinfo deployment ..."
@@ -248,7 +249,7 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
         until [ $n -ge 50 ]
         do
             NODE_IP=$(kubectl get po -l istio=ingress -n istio-system -o jsonpath='{.items[0].status.hostIP}')
-            NODE_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http")].nodePort}') && break
+            NODE_PORT=$(kubectl -n istio-system get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}') && break
             n=$[$n+1]
             sleep 5
         done
