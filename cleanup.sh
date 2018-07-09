@@ -17,6 +17,7 @@ export BIN_DIR="${BIN_DIR:-/usr/local/bin}"
 export ISTIO_INJECT_NS="${ISTIO_INJECT_NS:-default}"
 export INSTALL_BOOKINFO="${INSTALL_BOOKINFO:-true}"
 export REMOVE_BINS="${REMOVE_BINS:-false}"
+export DAILY_BUILD="${DAILY_BUILD:-false}"
 
 # Check for Root user.
 if [ "$(id -u)" != "0" ]; then
@@ -82,9 +83,16 @@ INSTALL_DIR=${INSTALL_DIR}/${CLUSTER_CONTEXT}
 echo "### Using \"${INSTALL_DIR}\" as the installation directory ..."
 mkdir -p ${INSTALL_DIR}
 
+# Set Istio directory and URL
+if [ "${DAILY_BUILD}" = "true" ] ; then
+    ISTIO_DIR="${INSTALL_DIR}/istio-release-${ISTIO_VERSION}"
+    URL="https://storage.googleapis.com/istio-prerelease/daily-build/release-${ISTIO_VERSION}/istio-release-${ISTIO_VERSION}-${OSEXT}.tar.gz"
+else
+    ISTIO_DIR="${INSTALL_DIR}/istio-${ISTIO_VERSION}"
+    URL="https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istio-${ISTIO_VERSION}-${OSEXT}.tar.gz"
+fi
+
 # Download Istio install templates, and sample apps.
-ISTIO_DIR="${INSTALL_DIR}/istio-${ISTIO_VERSION}"
-URL="https://github.com/istio/istio/releases/download/${ISTIO_VERSION}/istio-${ISTIO_VERSION}-${OSEXT}.tar.gz"
 DIR_CHECK="$(stat ${ISTIO_DIR} 2> /dev/null)"
 if [ "${DIR_CHECK}" ] ; then
     echo "### Istio install templates and sample apps currently installed at \"${ISTIO_DIR}\", skipping ..."
