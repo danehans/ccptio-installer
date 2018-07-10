@@ -45,7 +45,16 @@ For example, to change the Kubernetes namespace used to install Istio:
 export ISTIO_NAMESPACE=ccptio
 ```
 
-Now when you run the installer, Istio will be installed in the `ccptio` namespace instead of the default (istio-system).
+When you run the ccptio-installer, Istio will be installed in the `ccptio` namespace instead of the default (istio-system).
+
+## Tracing
+
+You can enable [Jaeger](https://jaegertracing.io/) tracing as part of the Istio installation by setting the `ENABLE_TRACING` environment variable:
+```bash
+export ENABLE_TRACING=true
+```
+
+When you run the ccptio-installer, Jaeger will be deployed as part of the Istio installation.
 
 ## Using Istio Daily Builds
 
