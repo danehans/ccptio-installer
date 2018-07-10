@@ -27,7 +27,7 @@ custom location:
 ## Istio Installation
 
 Installing Istio to CCP requires one command:
-```
+```bash
 curl -L https://git.io/install-ccptio  | sh -
 ```
 
@@ -46,6 +46,22 @@ export ISTIO_NAMESPACE=ccptio
 ```
 
 Now when you run the installer, Istio will be installed in the `ccptio` namespace instead of the default (istio-system).
+
+## Using Istio Daily Builds
+
+ccptio-installer supports installing Istio from [daily builds](https://gcsweb.istio.io/gcs/istio-prerelease/daily-build)
+by setting `DAILY_BUILD=true` and `ISTIO_VERSION` to the daily build version. Let's use the
+[1.0-20180709-09-15](https://gcsweb.istio.io/gcs/istio-prerelease/daily-build/release-1.0-20180709-09-15/) release for
+example. First, set the environment variables:
+```bash
+export DAILY_BUILD=true
+export ISTIO_VERSION=1.0-20180709-09-15
+```
+
+Next, run ccptio-installer:
+```bash
+curl -L https://git.io/install-ccptio  | sh -
+```
 
 ## Working with Multiple Clusters
 
