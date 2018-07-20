@@ -161,15 +161,15 @@ if [ "$(stat ${ISTIO_MANIFEST} 2> /dev/null)" ]; then
 fi
 if [ "${ENABLE_TRACING}" = "true" ] ; then
     helm template ${ISTIO_DIR}/install/kubernetes/helm/istio \
-    --set ingressgateway.service.type=NodePort --set tracing.enabled=true \
+    --set ingressgateway.service.type=NodePort --set tracing.enabled=true --set galley.enabled=true \
     --name istio --namespace ${ISTIO_NAMESPACE} > ${ISTIO_MANIFEST}
 elif [ "${ENABLE_MTLS}" = "true" ] ; then
     helm template ${ISTIO_DIR}/install/kubernetes/helm/istio \
-    --set ingressgateway.service.type=NodePort --set global.mtls.enabled=true \
+    --set ingressgateway.service.type=NodePort --set global.mtls.enabled=true --set galley.enabled=true \
     --name istio --namespace ${ISTIO_NAMESPACE} > ${ISTIO_MANIFEST}
 else
     helm template ${ISTIO_DIR}/install/kubernetes/helm/istio \
-    --set ingressgateway.service.type=NodePort \
+    --set ingressgateway.service.type=NodePort --set galley.enabled=true \
     --name istio --namespace ${ISTIO_NAMESPACE} > ${ISTIO_MANIFEST}
     if [ $? -eq 0 ] ; then
         echo "### Rendered ${ISTIO_MANIFEST} Kubernetes manifest for Istio deployment ..."
