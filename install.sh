@@ -233,6 +233,11 @@ fi
 
 # Install bookinfo sample app
 if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
+    if [ "${DAILY_BUILD}" = "true" ] ; then
+        JSON_PATH='{.spec.ports[?(@.name=="http2")].nodePort}'
+    else
+        JSON_PATH='{.spec.ports[?(@.name=="http")].nodePort}'
+    fi
     kubectl get po | grep productpage
     if [ $? -eq 0 ] ; then
         echo "### Bookinfo app exists, skipping ..."
@@ -249,7 +254,7 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
     kubectl get ing | grep gateway
     if [ $? -eq 0 ] ; then
         NODE_IP=$(kubectl get po -l istio=ingress -n ${ISTIO_NAMESPACE} -o jsonpath='{.items[0].status.hostIP}')
-        NODE_PORT=$(kubectl -n ${ISTIO_NAMESPACE} get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}')
+        NODE_PORT=$(kubectl -n ${ISTIO_NAMESPACE} get service istio-ingressgateway -o jsonpath=${JSON_PATH})
         echo "### Bookinfo ingress gateway exists, skipping ..."
         echo "### Manually test with the following:"
         echo "### curl -I http://${NODE_IP}:${NODE_PORT}/productpage"
@@ -267,7 +272,7 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
         until [ $n -ge 50 ]
         do
             NODE_IP=$(kubectl get po -l istio=ingress -n ${ISTIO_NAMESPACE} -o jsonpath='{.items[0].status.hostIP}')
-            NODE_PORT=$(kubectl -n ${ISTIO_NAMESPACE} get service istio-ingressgateway -o jsonpath='{.spec.ports[?(@.name=="http2")].nodePort}') && break
+            NODE_PORT=$(kubectl -n ${ISTIO_NAMESPACE} get service istio-ingressgateway -o jsonpath=${JSON_PATH}) && break
             n=$[$n+1]
             sleep 5
         done
