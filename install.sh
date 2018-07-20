@@ -17,6 +17,7 @@ export BIN_DIR="${BIN_DIR:-/usr/local/bin}"
 export ISTIO_INJECT_NS="${ISTIO_INJECT_NS:-default}"
 export INSTALL_BOOKINFO="${INSTALL_BOOKINFO:-true}"
 export ENABLE_TRACING="${ENABLE_TRACING:-false}"
+export ENABLE_MTLS="${ENABLE_MTLS:-false}"
 export DAILY_BUILD="${DAILY_BUILD:-false}"
 
 # Check for Root user.
@@ -161,6 +162,10 @@ fi
 if [ "${ENABLE_TRACING}" = "true" ] ; then
     helm template ${ISTIO_DIR}/install/kubernetes/helm/istio \
     --set ingressgateway.service.type=NodePort --set tracing.enabled=true \
+    --name istio --namespace ${ISTIO_NAMESPACE} > ${ISTIO_MANIFEST}
+elif [ "${ENABLE_MTLS}" = "true" ] ; then
+    helm template ${ISTIO_DIR}/install/kubernetes/helm/istio \
+    --set ingressgateway.service.type=NodePort --set global.mtls.enabled=true \
     --name istio --namespace ${ISTIO_NAMESPACE} > ${ISTIO_MANIFEST}
 else
     helm template ${ISTIO_DIR}/install/kubernetes/helm/istio \

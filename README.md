@@ -45,16 +45,28 @@ For example, to change the Kubernetes namespace used to install Istio:
 export ISTIO_NAMESPACE=ccptio
 ```
 
-When you run the ccptio-installer, Istio will be installed in the `ccptio` namespace instead of the default (istio-system).
+When you run the ccptio-installer, Istio will be installed in the `ccptio` namespace instead of the default
+(istio-system).
 
 ## Tracing
 
-You can enable [Jaeger](https://jaegertracing.io/) tracing as part of the Istio installation by setting the `ENABLE_TRACING` environment variable:
+You can enable [Jaeger](https://jaegertracing.io/) tracing as part of the Istio installation by setting the
+`ENABLE_TRACING` environment variable:
 ```bash
 export ENABLE_TRACING=true
 ```
 
 When you run the ccptio-installer, Jaeger will be deployed as part of the Istio installation.
+
+## mTLS
+
+You can enable [Istio mTLS](https://istio.io/docs/concepts/security/mutual-tls/) as part of the installation by setting
+the `ENABLE_MTLS` environment variable:
+```bash
+export ENABLE_MTLS=true
+```
+
+When you run the ccptio-installer, mTLS will be enabled as part of the Istio installation.
 
 ## Using Istio Daily Builds
 
@@ -74,7 +86,8 @@ curl -L https://git.io/install-ccptio  | sh -
 
 ## Working with Multiple Clusters
 
-ccptio-installer supports [multiple Kubernetes clusters](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/)
+ccptio-installer supports
+[multiple Kubernetes clusters](https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/)
 by using the `CLUSTER_CONTEXT` environment variable. `CLUSTER_CONTEXT` is empty by default, causing ccptio-installer to
 use the current cluster context. To run ccptio-installer against another cluster context, set `CLUSTER_CONTEXT` to the
 name of the desired cluster context and run the installer. For example:
