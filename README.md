@@ -48,25 +48,13 @@ export ISTIO_NAMESPACE=ccptio
 When you run the ccptio-installer, Istio will be installed in the `ccptio` namespace instead of the default
 (istio-system).
 
-## Tracing
-
-You can enable [Jaeger](https://jaegertracing.io/) tracing as part of the Istio installation by setting the
-`ENABLE_TRACING` environment variable:
+ccptio-installer also supports customizing the installation through [Helm parameters](https://istio.io/docs/setup/kubernetes/helm-install/#customization-with-helm)
+by using the `HELM_PARAMS` environment variable. Here is an example of setting mTLS between Istio mesh services and
+setting mTLS between control-plane services through the `global.controlPlaneSecurityEnabled` and `global.mtls.enabled`
+Helm parameters:
 ```bash
-export ENABLE_TRACING=true
+curl -L https://git.io/install-ccptio  | HELM_PARAMS="--set global.mtls.enabled --set global.controlPlaneSecurityEnabled=true" sh -
 ```
-
-When you run the ccptio-installer, Jaeger will be deployed as part of the Istio installation.
-
-## mTLS
-
-You can enable [Istio mTLS](https://istio.io/docs/concepts/security/mutual-tls/) as part of the installation by setting
-the `ENABLE_MTLS` environment variable:
-```bash
-export ENABLE_MTLS=true
-```
-
-When you run the ccptio-installer, mTLS will be enabled as part of the Istio installation.
 
 ## Using Istio Daily Builds
 
