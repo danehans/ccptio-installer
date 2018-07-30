@@ -227,13 +227,13 @@ fi
 if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
     if [ "${DAILY_BUILD}" = "true" ] ; then
         JSON_PATH='{.spec.ports[?(@.name=="http2")].nodePort}'
-        BOOKINFO_YAML='${ISTIO_DIR}/samples/bookinfo/platform/kube/bookinfo.yaml'
-        BOOKINFO_GW_YAML='${ISTIO_DIR}/samples/bookinfo/networking/bookinfo-gateway.yaml'
+        BOOKINFO_YAML="samples/bookinfo/platform/kube/bookinfo.yaml"
+        BOOKINFO_GW_YAML="samples/bookinfo/networking/bookinfo-gateway.yaml"
         INGRESS_LABEL="istio=ingressgateway"
     else
         JSON_PATH='{.spec.ports[?(@.name=="http")].nodePort}'
-        BOOKINFO_YAML='${ISTIO_DIR}/samples/bookinfo/kube/bookinfo.yaml'
-        BOOKINFO_GW_YAML='${ISTIO_DIR}/samples/bookinfo/routing/bookinfo-gateway.yaml'
+        BOOKINFO_YAML="samples/bookinfo/kube/bookinfo.yaml"
+        BOOKINFO_GW_YAML="/samples/bookinfo/routing/bookinfo-gateway.yaml"
         INGRESS_LABEL="istio=ingress"
     fi
     kubectl get po | grep productpage
@@ -243,7 +243,7 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
         echo "### Creating bookinfo deployment ..."
         echo "### Sleeping 2-minutes due to k8s issue #62725 ..."
         sleep 120
-        kubectl create -f $BOOKINFO_YAML
+        kubectl create -f ${ISTIO_DIR}/${BOOKINFO_YAML}
         if [ $? -ne 0 ] ; then
             echo "### Failed to create bookinfo deployment ..."
             exit 1
@@ -259,7 +259,7 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
     else
         echo "### Creating bookinfo ingress gateway ..."
         sleep 30
-        kubectl create -f $BOOKINFO_GW_YAML
+        kubectl create -f ${ISTIO_DIR}/${BOOKINFO_GW_YAML}
         if [ $? -ne 0 ] ; then
             echo "### Failed to create bookinfo ingress gateway ..."
             exit 1
