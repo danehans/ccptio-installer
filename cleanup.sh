@@ -151,12 +151,19 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
     kubectl get po 2> /dev/null | grep productpage
     if [ $? -eq 0 ] ; then
         echo "### Deleting bookinfo deployment ..."
-        kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/kube/bookinfo.yaml
+        if [ "${DAILY_BUILD}" = "true" ] ; then
+            BOOKINFO_YAML='${ISTIO_DIR}/samples/bookinfo/platform/kube/bookinfo.yaml'
+            BOOKINFO_GW_YAML='${ISTIO_DIR}/samples/bookinfo/networking/bookinfo-gateway.yaml'
+        else
+            BOOKINFO_YAML='${ISTIO_DIR}/samples/bookinfo/kube/bookinfo.yaml'
+            BOOKINFO_GW_YAML='${ISTIO_DIR}/samples/bookinfo/routing/bookinfo-gateway.yaml'
+    fi
+        kubectl delete -f $BOOKINFO_YAML
     fi
     kubectl get ing 2> /dev/null | grep gateway
     if [ $? -eq 0 ] ; then
         echo "### Deleting bookinfo ingress gateway ..."
-        kubectl delete -f ${ISTIO_DIR}/samples/bookinfo/routing/bookinfo-gateway.yaml
+        kubectl delete -f $BOOKINFO_GW_YAML
     fi
 fi   
 
