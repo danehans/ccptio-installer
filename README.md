@@ -53,7 +53,7 @@ by using the `HELM_PARAMS` environment variable. Here is an example of setting m
 setting mTLS between control-plane services through the `global.controlPlaneSecurityEnabled` and `global.mtls.enabled`
 Helm parameters:
 ```bash
-curl -L https://git.io/install-ccptio  | HELM_PARAMS="--set global.mtls.enabled --set global.controlPlaneSecurityEnabled=true" sh -
+curl -L https://git.io/install-ccptio  | HELM_PARAMS="--set global.mtls.enabled=true --set global.controlPlaneSecurityEnabled=true" sh -
 ```
 
 ## Using Istio Daily Builds
