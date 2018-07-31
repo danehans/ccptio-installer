@@ -251,8 +251,6 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
         echo "### Bookinfo app exists, skipping ..."
     else
         echo "### Creating bookinfo deployment ..."
-        echo "### Sleeping 2-minutes due to k8s issue #62725 ..."
-        sleep 120
         kubectl create -f ${ISTIO_DIR}/${BOOKINFO_YAML}
         if [ $? -ne 0 ] ; then
             echo "### Failed to create bookinfo deployment ..."

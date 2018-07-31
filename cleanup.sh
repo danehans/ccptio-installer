@@ -256,4 +256,10 @@ if [ "${REMOVE_BINS}" = "true" ] ; then
     fi
 fi
 
+kubectl get ns ${ISTIO_NAMESPACE} 2> /dev/null
+if [ $? -eq 0 ] ; then
+    echo "### Waiting 30-seconds for namespace ${ISTIO_NAMESPACE} to be removed from kube-apiserver ..."
+    sleep 30
+fi
+
 echo "### Istio clean-up complete!"
