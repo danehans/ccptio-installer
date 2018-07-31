@@ -7,7 +7,7 @@
 #
 
 export CLUSTER_CONTEXT="${CLUSTER_CONTEXT:-}"
-export ISTIO_VERSION="${ISTIO_VERSION:-0.8.0}"
+export ISTIO_VERSION="${ISTIO_VERSION:-1.0.0}"
 export KUBECTL_VERSION="${KUBECTL_VERSION:-1.10.1}"
 export HELM_VERSION="${HELM_VERSION:-2.8.2}"
 export ISTIO_NAMESPACE="${ISTIO_NAMESPACE:-istio-system}"
@@ -148,33 +148,43 @@ fi
 
 # Remove bookinfo sample app
 if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
-    kubectl get po 2> /dev/null | grep productpage
-    if [ $? -eq 0 ] ; then
-        echo "### Deleting bookinfo deployment ..."
-        if [ "${DAILY_BUILD}" = "true" ] ; then
-            BOOKINFO_YAML="samples/bookinfo/platform/kube/bookinfo.yaml"
-            BOOKINFO_GW_YAML="samples/bookinfo/networking/bookinfo-gateway.yaml"
-        else
-            BOOKINFO_YAML="samples/bookinfo/kube/bookinfo.yaml"
-            BOOKINFO_GW_YAML="samples/bookinfo/routing/bookinfo-gateway.yaml"
+    if [ "${ISTIO_VERSION}" = "0.8.0" ]; then
+        BOOKINFO_YAML="samples/bookinfo/kube/bookinfo.yaml"
+        BOOKINFO_GW_YAML="samples/bookinfo/routing/bookinfo-gateway.yaml"
+        RESOURCE="ing"
+        GREP_KEY="gateway"
+    else
+        BOOKINFO_YAML="samples/bookinfo/platform/kube/bookinfo.yaml"
+        BOOKINFO_GW_YAML="samples/bookinfo/networking/bookinfo-gateway.yaml"
+        RESOURCE="gateways"
+        GREP_KEY="bookinfo-gateway"
     fi
-        kubectl delete -f ${ISTIO_DIR}/${BOOKINFO_YAML}
-    fi
-    kubectl get ing 2> /dev/null | grep gateway
+    kubectl get $RESOURCE 2> /dev/null | grep $GREP_KEY
     if [ $? -eq 0 ] ; then
         echo "### Deleting bookinfo ingress gateway ..."
         kubectl delete -f ${ISTIO_DIR}/${BOOKINFO_GW_YAML}
+    fi
+    kubectl get po 2> /dev/null | grep productpage
+    if [ $? -eq 0 ] ; then
+        echo "### Deleting bookinfo deployment ..."
+        kubectl delete -f ${ISTIO_DIR}/${BOOKINFO_YAML}
     fi
 fi   
 
 # Remove Istio deployment.
 kubectl get deploy -n ${ISTIO_NAMESPACE} 2> /dev/null | grep istio-pilot
 if [ $? -eq 0 ] ; then
+    if [ "${ISTIO_VERSION}" != "0.8.0" ]; then
+        echo "### Deleteing Istio’s Custom Resource Definitions ..."
+        kubectl delete -f ${ISTIO_DIR}/install/kubernetes/helm/istio/templates/crds.yaml -n ${ISTIO_NAMESPACE}
+        echo "### Waiting 30-seconds for CRDs to be decommitted in the kube-apiserver"
+        sleep 30
+    fi
     echo "### Deleting Istio deployment in namespace \"${ISTIO_NAMESPACE}\" ..."
     kubectl delete -f ${ISTIO_MANIFEST}
     if [ $? -ne 0 ] ; then
-        echo "### Failed to delete Istio deployment in namespace \"${ISTIO_NAMESPACE}\" ..."
-        exit 1
+        echo "### It is safe to ignore errors for non-existent resources"
+        echo "### because they may have been deleted hierarchically."
     fi
     echo "### Deleted Kubernetes deployment for Istio in namespace \"${ISTIO_NAMESPACE}\" ..."
 else

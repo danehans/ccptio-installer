@@ -7,7 +7,7 @@
 #
 
 export CLUSTER_CONTEXT="${CLUSTER_CONTEXT:-}"
-export ISTIO_VERSION="${ISTIO_VERSION:-0.8.0}"
+export ISTIO_VERSION="${ISTIO_VERSION:-1.0.0}"
 export KUBECTL_VERSION="${KUBECTL_VERSION:-1.10.1}"
 export HELM_VERSION="${HELM_VERSION:-2.8.2}"
 export ISTIO_NAMESPACE="${ISTIO_NAMESPACE:-istio-system}"
@@ -159,7 +159,7 @@ if [ "$(stat ${ISTIO_MANIFEST} 2> /dev/null)" ]; then
     echo "### Run \"rm -rf ${ISTIO_MANIFEST}\" to re-render the Kubernetes manifest ..."
 fi
 
-ccp_params="--set ingressgateway.service.type=NodePort --set galley.enabled=true"
+ccp_params="--set ingress.enabled=true --set ingress.service.type=NodePort"
 
 helm template ${ISTIO_DIR}/install/kubernetes/helm/istio $ccp_params ${HELM_PARAMS} \
 --name istio --namespace ${ISTIO_NAMESPACE} > ${ISTIO_MANIFEST}
@@ -204,11 +204,17 @@ if [ $? -eq 0 ] ; then
     echo "### To redeploy Istio in namespace \"${ISTIO_NAMESPACE}\", run \"kubectl delete -f ${ISTIO_MANIFEST}\""
     echo "### or use a different value for ISTIO_NAMESPACE."
 else
+    if [ "${ISTIO_VERSION}" != "0.8.0" ]; then
+        echo "### Installing Istio’s Custom Resource Definitions ..."
+        kubectl apply -f ${ISTIO_DIR}/install/kubernetes/helm/istio/templates/crds.yaml -n ${ISTIO_NAMESPACE}
+        echo "### Waiting 30-seconds for CRDs to be committed in the kube-apiserver"
+        sleep 30
+    fi
     echo "### Deploying Istio using manifest ${ISTIO_MANIFEST} ..."
     kubectl create -f ${ISTIO_MANIFEST}
     if [ $? -ne 0 ] ; then
-        echo "### Failed to deploy Istio using manifest ${ISTIO_MANIFEST} ..."
-        exit 1
+        echo "### It is safe to ignore errors for non-existent or duplicate resources"
+        echo "### because they may have been created hierarchically."
     else
         echo "### Waiting for Istio pods to achieve a Running or Completed status ..."
         n=0
@@ -225,16 +231,20 @@ fi
 
 # Install bookinfo sample app
 if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
-    if [ "${DAILY_BUILD}" = "true" ] ; then
-        JSON_PATH='{.spec.ports[?(@.name=="http2")].nodePort}'
-        BOOKINFO_YAML="samples/bookinfo/platform/kube/bookinfo.yaml"
-        BOOKINFO_GW_YAML="samples/bookinfo/networking/bookinfo-gateway.yaml"
-        INGRESS_LABEL="istio=ingressgateway"
-    else
+    if [ "${ISTIO_VERSION}" = "0.8.0" ]; then
         JSON_PATH='{.spec.ports[?(@.name=="http")].nodePort}'
         BOOKINFO_YAML="samples/bookinfo/kube/bookinfo.yaml"
         BOOKINFO_GW_YAML="/samples/bookinfo/routing/bookinfo-gateway.yaml"
         INGRESS_LABEL="istio=ingress"
+        RESOURCE="ing"
+        GREP_KEY="gateway"
+    else
+        JSON_PATH='{.spec.ports[?(@.name=="http2")].nodePort}'
+        BOOKINFO_YAML="samples/bookinfo/platform/kube/bookinfo.yaml"
+        BOOKINFO_GW_YAML="samples/bookinfo/networking/bookinfo-gateway.yaml"
+        INGRESS_LABEL="istio=ingressgateway"
+        RESOURCE="gateways"
+        GREP_KEY="bookinfo-gateway"
     fi
     kubectl get po | grep productpage
     if [ $? -eq 0 ] ; then
@@ -249,7 +259,7 @@ if [ "${INSTALL_BOOKINFO}" = "true" ] ; then
             exit 1
         fi
     fi
-    kubectl get ing | grep gateway
+    kubectl get $RESOURCE 2> /dev/null | grep $GREP_KEY
     if [ $? -eq 0 ] ; then
         NODE_IP=$(kubectl get po -l ${INGRESS_LABEL} -n ${ISTIO_NAMESPACE} -o jsonpath='{.items[0].status.hostIP}')
         NODE_PORT=$(kubectl -n ${ISTIO_NAMESPACE} get service istio-ingressgateway -o jsonpath=${JSON_PATH})
