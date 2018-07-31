@@ -4,8 +4,9 @@ ccptio-installer is a tool for installing or removing Istio on the Cisco Contain
 ## Introduction
 
 [Istio](https://istio.io/) is an open platform to connect, manage, and secure microservices. This guide provides
-instructions for installing and uninstalling Istio 0.8.0 on Cisco Container Platform (CCP) 1.0.1. Reference
-the [official documentation](https://istio.io/docs/) to learn more about Istio.
+instructions for installing and uninstalling Istio 1.0.0 or a
+[daily build](https://gcsweb.istio.io/gcs/istio-prerelease/daily-build) on Cisco Container Platform (CCP) 1.0.1.
+Reference the [official documentation](https://istio.io/docs/) to learn more about Istio.
 
 ## Prerequisites
 
@@ -145,7 +146,7 @@ The uninstaller supports similar configuration options as the installer. Review 
 Verify the Istio Client installation by using the `istioctl version` command. You should receive output similar to the
 following:
 ```
-Version: 0.8.0
+Version: 1.0.0
 GitRevision: 6f9f420f0c7119ff4fa6a1966a6f6d89b1b4db84
 User: root@48d5ddfd72da
 Hub: docker.io/istio
